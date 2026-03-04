@@ -162,19 +162,22 @@
       padding: 1px 5px; border-radius: 3px;
     }
 
-    /* ── MAIN 3-PANE ── */
-    .main {
-      display: flex; flex: 1; overflow: hidden;
+    /* ── WORKSPACE: 3-column ── */
+    .workspace {
+      display: flex; flex: 1; overflow: hidden; min-height: 0;
     }
 
-    .pane {
-      display: flex; flex-direction: column;
-      flex: 1; min-width: 0;
-      border-right: 1px solid var(--border);
-      overflow: hidden;
-    }
-    .pane:last-child { border-right: none; }
+    /* Side cols (Input / Output) are narrower than centre */
+    .col { display: flex; flex-direction: column; overflow: hidden; }
+    .col-side   { flex: 1; min-width: 0; border-right: 1px solid var(--border); }
+    .col-side:last-child { border-right: none; }
+    .col-center { flex: 1.2; min-width: 0; border-right: 1px solid var(--border); }
 
+    /* Editor fills the available vertical space in its column */
+    .editor-wrap { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+    .editor-wrap > div { position: absolute; inset: 0; }
+
+    /* ── PANE BAR ── */
     .pane-bar {
       background: var(--bg-panel);
       border-bottom: 1px solid var(--border);
@@ -188,14 +191,21 @@
     .ind-xml   { background: #3fb950; box-shadow: 0 0 8px rgba(63,185,80,0.5); }
     .ind-xslt  { background: var(--sap-blue); box-shadow: 0 0 8px var(--sap-blue-glow); }
     .ind-out   { background: var(--sap-gold); box-shadow: 0 0 8px rgba(245,165,36,0.4); }
-
     .pane-title {
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px; font-weight: 600;
       letter-spacing: 1.3px; text-transform: uppercase;
       color: var(--text-secondary);
     }
-    .pane-actions { margin-left: auto; display: flex; gap: 3px; }
+    .lang-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 700;
+      padding: 1px 6px; border-radius: 3px;
+      background: rgba(0,112,242,0.15);
+      border: 1px solid rgba(0,112,242,0.25);
+      color: #60a0f8; letter-spacing: 0.5px;
+    }
+    .pane-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
     .pane-act-btn {
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px; color: var(--text-dim);
@@ -211,27 +221,135 @@
       border-color: var(--border);
     }
 
-    .editor-wrap {
-      flex: 1; overflow: hidden; position: relative;
+    /* ── KEY-VALUE PANELS (Headers / Properties) ── */
+    .kv-panel {
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: var(--bg-panel);
+      display: flex; flex-direction: column;
+      max-height: 200px;
+      transition: max-height 0.2s ease;
     }
-    .editor-wrap > div {
-      position: absolute; inset: 0;
+    .kv-panel.collapsed { max-height: 30px; overflow: hidden; }
+    .kv-header {
+      height: 30px; flex-shrink: 0;
+      display: flex; align-items: center;
+      padding: 0 10px; gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-header:hover { background: rgba(255,255,255,0.02); }
+    .kv-icon {
+      font-size: 11px; color: var(--sap-blue); font-weight: 700;
+      width: 14px; text-align: center;
+    }
+    .kv-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .kv-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      background: rgba(0,112,242,0.2);
+      color: #60a0f8;
+      padding: 0 5px; border-radius: 8px;
+      min-width: 18px; text-align: center;
+    }
+    .kv-add-btn {
+      margin-left: auto;
+      width: 18px; height: 18px;
+      background: rgba(0,112,242,0.15);
+      border: 1px solid rgba(0,112,242,0.3);
+      border-radius: 4px;
+      color: #60a0f8; font-size: 14px; line-height: 1;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .kv-add-btn:hover { background: rgba(0,112,242,0.3); }
+    .kv-chevron {
+      width: 12px; height: 12px;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .kv-panel.collapsed .kv-chevron { transform: rotate(-90deg); }
+    /* When add-btn is present, chevron has no left auto */
+    .kv-add-btn + .kv-chevron { margin-left: 4px; }
+    /* For output panels (no add btn), push chevron right */
+    .kv-header .kv-chevron:last-child { margin-left: auto; }
+
+    .kv-body {
+      flex: 1; overflow-y: auto;
+      padding: 0;
+    }
+    .kv-body::-webkit-scrollbar { width: 4px; }
+    .kv-body::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+
+    .kv-table-head {
+      display: grid; grid-template-columns: 1fr 1fr 24px;
+      padding: 3px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 0.8px; text-transform: uppercase;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    /* Output panels have no delete column */
+    #outHdrBody .kv-table-head,
+    #outPropBody .kv-table-head { grid-template-columns: 1fr 1fr; }
+
+    .kv-row {
+      display: grid; grid-template-columns: 1fr 1fr 24px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    .kv-row:last-child { border-bottom: none; }
+    .kv-row input {
+      background: transparent;
+      border: none; outline: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--text-primary);
+      padding: 4px 10px; width: 100%;
+    }
+    .kv-row input:focus { background: rgba(0,112,242,0.06); }
+    .kv-row input::placeholder { color: var(--text-dim); }
+    .kv-row input:first-child { border-right: 1px solid var(--border); }
+    .kv-del-btn {
+      width: 24px; height: 100%;
+      background: transparent; border: none;
+      color: var(--text-dim); cursor: pointer;
+      font-size: 13px; display: flex;
+      align-items: center; justify-content: center;
+      transition: color 0.15s;
+    }
+    .kv-del-btn:hover { color: var(--error); }
+
+    /* Output KV rows (read-only) */
+    .kv-row-out {
+      display: grid; grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    .kv-row-out span {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; padding: 4px 10px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .kv-row-out .kv-k { color: var(--text-secondary); border-right: 1px solid var(--border); }
+    .kv-row-out .kv-v { color: var(--success); }
+
+    .kv-empty {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: var(--text-dim);
+      padding: 8px 10px; font-style: italic;
     }
 
-    /* ── OUTPUT PANE ── */
-    .out-pane-body {
-      flex: 1; display: flex; flex-direction: column; overflow: hidden;
-    }
-    .out-editor-zone {
-      flex: 1; overflow: hidden; position: relative;
-    }
-    .out-editor-zone > div {
-      position: absolute; inset: 0;
-    }
-
-    /* ── CONSOLE ── */
-    .console {
-      height: 130px; flex-shrink: 0;
+    /* ── CONSOLE (full-width bottom) ── */
+    .console-panel {
+      height: 120px; flex-shrink: 0;
       border-top: 1px solid var(--border);
       display: flex; flex-direction: column;
     }
@@ -250,7 +368,7 @@
     }
     .console-body {
       flex: 1; overflow-y: auto;
-      padding: 6px 14px;
+      padding: 4px 14px;
       background: #05080e;
       font-family: 'JetBrains Mono', monospace;
       font-size: 11.5px;
@@ -264,6 +382,11 @@
     .log-line.success .msg { color: var(--success); }
     .log-line.error .msg   { color: var(--error); }
     .log-line.warn .msg    { color: var(--warning); }
+
+    /* Light theme overrides for panels */
+    body.light .kv-panel  { background: var(--bg-panel); }
+    body.light .kv-row input { color: var(--text-primary); }
+    body.light .console-body { background: #f8fafc; }
 
     /* ── STATUS BAR ── */
     .status-bar {
@@ -406,7 +529,7 @@
     }
   </style>
 </head>
-<body>
+<body class="light">
 
 <!-- Loading -->
 <div id="loadingOverlay">
@@ -441,88 +564,25 @@
     </button>
     <div class="ex-menu" id="exMenu">
       <div class="ex-menu-header">SAP CPI Examples</div>
-
       <div class="ex-group-label">Data Transformation</div>
-      <div class="ex-item" onclick="loadExample('identityTransform')">
-        <span class="ex-icon">🔁</span>
-        <div class="ex-info">
-          <div class="ex-name">Identity Transform</div>
-          <div class="ex-desc">Copy XML as-is, basis for all modifications</div>
-        </div>
-      </div>
-      <div class="ex-item" onclick="loadExample('renameElements')">
-        <span class="ex-icon">✏️</span>
-        <div class="ex-info">
-          <div class="ex-name">Rename Elements &amp; Attributes</div>
-          <div class="ex-desc">Map source field names to target field names</div>
-        </div>
-      </div>
-      <div class="ex-item" onclick="loadExample('filterNodes')">
-        <span class="ex-icon">🔍</span>
-        <div class="ex-info">
-          <div class="ex-name">Filter / Conditional Output</div>
-          <div class="ex-desc">Include nodes only when conditions are met</div>
-        </div>
-      </div>
-
+      <div class="ex-item" onclick="loadExample('identityTransform')"><span class="ex-icon">🔁</span><div class="ex-info"><div class="ex-name">Identity Transform</div><div class="ex-desc">Copy XML as-is, basis for all modifications</div></div></div>
+      <div class="ex-item" onclick="loadExample('renameElements')"><span class="ex-icon">✏️</span><div class="ex-info"><div class="ex-name">Rename Elements &amp; Attributes</div><div class="ex-desc">Map source field names to target field names</div></div></div>
+      <div class="ex-item" onclick="loadExample('filterNodes')"><span class="ex-icon">🔍</span><div class="ex-info"><div class="ex-name">Filter / Conditional Output</div><div class="ex-desc">Include nodes only when conditions are met</div></div></div>
       <div class="ex-group-label">Aggregation &amp; Grouping</div>
-      <div class="ex-item" onclick="loadExample('groupBy')">
-        <span class="ex-icon">📦</span>
-        <div class="ex-info">
-          <div class="ex-name">Group-by &amp; Aggregate</div>
-          <div class="ex-desc">Group line items, compute subtotals</div>
-        </div>
-      </div>
-      <div class="ex-item" onclick="loadExample('splitMessage')">
-        <span class="ex-icon">✂️</span>
-        <div class="ex-info">
-          <div class="ex-name">Split Message</div>
-          <div class="ex-desc">Split multi-item payload into individual messages</div>
-        </div>
-      </div>
-
+      <div class="ex-item" onclick="loadExample('groupBy')"><span class="ex-icon">📦</span><div class="ex-info"><div class="ex-name">Group-by &amp; Aggregate</div><div class="ex-desc">Group line items, compute subtotals</div></div></div>
+      <div class="ex-item" onclick="loadExample('splitMessage')"><span class="ex-icon">✂️</span><div class="ex-info"><div class="ex-name">Split Message</div><div class="ex-desc">Split multi-item payload into individual messages</div></div></div>
       <div class="ex-group-label">Format Conversion</div>
-      <div class="ex-item" onclick="loadExample('dateFormatting')">
-        <span class="ex-icon">📅</span>
-        <div class="ex-info">
-          <div class="ex-name">Date Format Conversion</div>
-          <div class="ex-desc">Convert between SAP, ISO 8601, and custom formats</div>
-        </div>
-      </div>
-      <div class="ex-item" onclick="loadExample('currencyAmount')">
-        <span class="ex-icon">💱</span>
-        <div class="ex-info">
-          <div class="ex-name">Currency &amp; Amount Formatting</div>
-          <div class="ex-desc">format-number, decimal normalization, currency codes</div>
-        </div>
-      </div>
-
+      <div class="ex-item" onclick="loadExample('dateFormatting')"><span class="ex-icon">📅</span><div class="ex-info"><div class="ex-name">Date Format Conversion</div><div class="ex-desc">Convert between SAP, ISO 8601, and custom formats</div></div></div>
+      <div class="ex-item" onclick="loadExample('currencyAmount')"><span class="ex-icon">💱</span><div class="ex-info"><div class="ex-name">Currency &amp; Amount Formatting</div><div class="ex-desc">format-number, decimal normalization, currency codes</div></div></div>
       <div class="ex-group-label">SAP IDoc / Order Scenarios</div>
-      <div class="ex-item" onclick="loadExample('idocToXml')">
-        <span class="ex-icon">📄</span>
-        <div class="ex-info">
-          <div class="ex-name">IDoc ORDERS05 → Custom XML</div>
-          <div class="ex-desc">Transform SAP IDoc purchase order structure</div>
-        </div>
-      </div>
-      <div class="ex-item" onclick="loadExample('lookupEnrich')">
-        <span class="ex-icon">🔗</span>
-        <div class="ex-info">
-          <div class="ex-name">Value Mapping / Lookup</div>
-          <div class="ex-desc">Map coded values using xsl:key lookup table</div>
-        </div>
-      </div>
-      <div class="ex-item" onclick="loadExample('errorHandling')">
-        <span class="ex-icon">🛡️</span>
-        <div class="ex-info">
-          <div class="ex-name">Error Handling (xsl:try)</div>
-          <div class="ex-desc">Catch transform errors, produce fallback output</div>
-        </div>
-      </div>
+      <div class="ex-item" onclick="loadExample('idocToXml')"><span class="ex-icon">📄</span><div class="ex-info"><div class="ex-name">IDoc ORDERS05 → Custom XML</div><div class="ex-desc">Transform SAP IDoc purchase order structure</div></div></div>
+      <div class="ex-item" onclick="loadExample('lookupEnrich')"><span class="ex-icon">🔗</span><div class="ex-info"><div class="ex-name">Value Mapping / Lookup</div><div class="ex-desc">Map coded values using xsl:key lookup table</div></div></div>
+      <div class="ex-item" onclick="loadExample('errorHandling')"><span class="ex-icon">🛡️</span><div class="ex-info"><div class="ex-name">Error Handling (xsl:try)</div><div class="ex-desc">Catch transform errors, produce fallback output</div></div></div>
+      <div class="ex-item" onclick="loadExample('cpiHeaders')"><span class="ex-icon">🏷️</span><div class="ex-info"><div class="ex-name">Headers &amp; Properties (CPI)</div><div class="ex-desc">xsl:param binding + cpi:setHeader / setProperty</div></div></div>
     </div>
   </div>
 
-  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark theme">🌙</button>
+  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark theme">☀️</button>
 
   <button class="run-btn" id="runBtn" onclick="runTransform()">
     <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg>
@@ -531,30 +591,66 @@
   </button>
 </header>
 
-<!-- 3-Pane Main -->
-<div class="main">
+<!-- 3-Column layout -->
+<div class="workspace">
 
-  <!-- Pane 1 — XML Input -->
-  <div class="pane">
+  <!-- LEFT: XML Input + Headers + Properties -->
+  <div class="col col-side">
     <div class="pane-bar">
       <div class="pane-indicator ind-xml"></div>
-      <span class="pane-title">XML Source</span>
+      <span class="pane-title">Input Message</span>
       <div class="pane-actions">
+        <span class="lang-badge">XML</span>
         <button class="pane-act-btn" onclick="fmtEditor('xml')">Format</button>
         <button class="pane-act-btn" onclick="clearPane('xml')">Clear</button>
       </div>
     </div>
-    <div class="editor-wrap">
+    <div class="editor-wrap" id="xmlEdWrap">
       <div id="xmlEd"></div>
+    </div>
+
+    <!-- Headers Panel -->
+    <div class="kv-panel" id="hdrPanel">
+      <div class="kv-header" onclick="toggleKVPanel('hdrPanel')">
+        <span class="kv-icon">#</span>
+        <span class="kv-title">Headers</span>
+        <span class="kv-count" id="hdrCount">0</span>
+        <button class="kv-add-btn" onclick="event.stopPropagation(); addKVRow('headers')">+</button>
+        <svg class="kv-chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
+      </div>
+      <div class="kv-body" id="hdrBody">
+        <div class="kv-table-head">
+          <span>Name</span><span>Value</span><span></span>
+        </div>
+        <div id="hdrRows"></div>
+      </div>
+    </div>
+
+    <!-- Properties Panel -->
+    <div class="kv-panel" id="propPanel">
+      <div class="kv-header" onclick="toggleKVPanel('propPanel')">
+        <span class="kv-icon">⚙</span>
+        <span class="kv-title">Properties</span>
+        <span class="kv-count" id="propCount">0</span>
+        <button class="kv-add-btn" onclick="event.stopPropagation(); addKVRow('properties')">+</button>
+        <svg class="kv-chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
+      </div>
+      <div class="kv-body" id="propBody">
+        <div class="kv-table-head">
+          <span>Name</span><span>Value</span><span></span>
+        </div>
+        <div id="propRows"></div>
+      </div>
     </div>
   </div>
 
-  <!-- Pane 2 — XSLT -->
-  <div class="pane">
+  <!-- CENTER: XSLT Editor (full height) -->
+  <div class="col col-center">
     <div class="pane-bar">
       <div class="pane-indicator ind-xslt"></div>
       <span class="pane-title">XSLT Stylesheet</span>
       <div class="pane-actions">
+        <span class="lang-badge">XSLT</span>
         <button class="pane-act-btn" onclick="fmtEditor('xslt')">Format</button>
         <button class="pane-act-btn" onclick="clearPane('xslt')">Clear</button>
       </div>
@@ -564,31 +660,60 @@
     </div>
   </div>
 
-  <!-- Pane 3 — Output + Console -->
-  <div class="pane">
+  <!-- RIGHT: Output + Output Headers + Output Properties -->
+  <div class="col col-side">
     <div class="pane-bar">
       <div class="pane-indicator ind-out"></div>
-      <span class="pane-title">Output</span>
+      <span class="pane-title">Output Message</span>
       <div class="pane-actions">
+        <span class="lang-badge">XML</span>
         <button class="pane-act-btn" onclick="fmtEditor('out')">Format</button>
         <button class="pane-act-btn" onclick="copyOutput()">Copy</button>
         <button class="pane-act-btn" onclick="clearPane('out')">Clear</button>
       </div>
     </div>
-    <div class="out-pane-body">
-      <div class="out-editor-zone">
-        <div id="outEd"></div>
+    <div class="editor-wrap" id="outEdWrap">
+      <div id="outEd"></div>
+    </div>
+
+    <!-- Output Headers Panel -->
+    <div class="kv-panel" id="outHdrPanel">
+      <div class="kv-header" onclick="toggleKVPanel('outHdrPanel')">
+        <span class="kv-icon">#</span>
+        <span class="kv-title">Headers</span>
+        <span class="kv-count" id="outHdrCount">0</span>
+        <svg class="kv-chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
       </div>
-      <div class="console">
-        <div class="console-bar">
-          <span class="console-title">Console</span>
-          <button class="pane-act-btn" style="margin-left:auto" onclick="clearConsole()">Clear</button>
-        </div>
-        <div class="console-body" id="consoleBody"></div>
+      <div class="kv-body" id="outHdrBody">
+        <div class="kv-table-head"><span>Name</span><span>Value</span></div>
+        <div id="outHdrRows"></div>
+      </div>
+    </div>
+
+    <!-- Output Properties Panel -->
+    <div class="kv-panel" id="outPropPanel">
+      <div class="kv-header" onclick="toggleKVPanel('outPropPanel')">
+        <span class="kv-icon">⚙</span>
+        <span class="kv-title">Properties</span>
+        <span class="kv-count" id="outPropCount">0</span>
+        <svg class="kv-chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
+      </div>
+      <div class="kv-body" id="outPropBody">
+        <div class="kv-table-head"><span>Name</span><span>Value</span></div>
+        <div id="outPropRows"></div>
       </div>
     </div>
   </div>
 
+</div>
+
+<!-- Console (full width bottom) -->
+<div class="console-panel">
+  <div class="console-bar">
+    <span class="console-title">Console</span>
+    <button class="pane-act-btn" style="margin-left:auto" onclick="clearConsole()">Clear</button>
+  </div>
+  <div class="console-body" id="consoleBody"></div>
 </div>
 
 <!-- Status Bar -->
@@ -609,6 +734,10 @@
 let eds = { xml: null, xslt: null, out: null };
 let xsltVersion = '3.0';
 let saxonReady  = false;
+
+// KV stores: { id, name, value }
+let kvData = { headers: [], properties: [] };
+let kvIdSeq = 0;
 
 // ════════════════════════════════════════════
 //  SAMPLE DATA
@@ -926,55 +1055,197 @@ function fmtEditor(which) {
 }
 
 // ════════════════════════════════════════════
+//  CPI HEADER / PROPERTY SIMULATION
+// ════════════════════════════════════════════
+
+// 1. Extract static string values from cpi:setHeader / cpi:setProperty calls
+function extractCPICalls(xslt) {
+  const result = { headers: {}, properties: {} };
+  const hRe = /cpi:setHeader\s*\(\s*\$\w+\s*,\s*'([^']+)'\s*,\s*'([^']*)'\s*\)/g;
+  const pRe = /cpi:setProperty\s*\(\s*\$\w+\s*,\s*'([^']+)'\s*,\s*'([^']*)'\s*\)/g;
+  let m;
+  while ((m = hRe.exec(xslt)) !== null) result.headers[m[1]]    = m[2];
+  while ((m = pRe.exec(xslt)) !== null) result.properties[m[1]] = m[2];
+  return result;
+}
+
+// 2. Remove the cpi: namespace declaration and rewrite cpi:setXxx calls
+//    so Saxon-JS never sees the unknown function.
+//    Strategy: remove xmlns:cpi="..." and replace the full xsl:value-of
+//    element with a harmless empty string select.
+function stripCPICalls(xslt) {
+  // 1. Remove xmlns:cpi namespace declaration
+  xslt = xslt.replace(/\s*xmlns:cpi\s*=\s*"[^"]*"/g, '');
+  // 2. Remove 'cpi' from exclude-result-prefixes (e.g. "cpi xs" -> "xs", "xs cpi" -> "xs")
+  xslt = xslt.replace(/(exclude-result-prefixes\s*=\s*")([^"]*)"/g, (_, attr, val) => {
+    const cleaned = val.split(/\s+/).filter(p => p !== 'cpi').join(' ');
+    return attr + cleaned + '"';
+  });
+  // 3. Remove self-closing: <xsl:value-of select="cpi:setXxx(...)"/>
+  xslt = xslt.replace(/<xsl:value-of[^>]*select\s*=\s*"cpi:set[^"]*"[^>]*\/>/g, '');
+  // 4. Remove open+close form: <xsl:value-of select="cpi:setXxx(...)"></xsl:value-of>
+  xslt = xslt.replace(/<xsl:value-of[^>]*select\s*=\s*"cpi:set[^"]*"[^>]*>[^<]*<\/xsl:value-of>/g, '');
+  return xslt;
+}
+
+// 3. Build the stylesheet-params map fragment for XPath transform()
+// Valid XML NCName: must start with letter or underscore, then letters/digits/.-_
+function isValidNCName(name) {
+  return /^[A-Za-z_][\w.\-]*$/.test(name);
+}
+
+function buildParamsXPath() {
+  const entries = [];
+  const skipped = [];
+  // Inject a dummy $exchange so stylesheets that declare it don't get an error
+  entries.push(`QName('','exchange'): 'exchange'`);
+  // Pass all named input headers and properties
+  [...kvData.headers, ...kvData.properties].forEach(row => {
+    const k = row.name.trim();
+    const v = row.value.trim().replace(/'/g, "''");
+    if (!k) return;
+    if (!isValidNCName(k)) {
+      skipped.push(k);
+      return; // skip invalid names silently here, warn after
+    }
+    entries.push(`QName('','${k}'): '${v}'`);
+  });
+  if (skipped.length) {
+    // Warn — but don't block the transform
+    setTimeout(() => {
+      skipped.forEach(n =>
+        clog(`Warning: header/property "${n}" skipped — not a valid xsl:param name (must start with a letter or underscore)`, 'warn')
+      );
+    }, 0);
+  }
+  return `, 'stylesheet-params': map { ${entries.join(', ')} }`;
+}
+
+// 4. Render the read-only output panels
+function renderOutputKV(headers, properties) {
+  const render = (rowsId, countId, data) => {
+    const keys = Object.keys(data);
+    document.getElementById(countId).textContent = keys.length;
+    document.getElementById(rowsId).innerHTML = keys.length
+      ? keys.map(k =>
+          `<div class="kv-row-out">
+            <span class="kv-k">${escHtml(k)}</span>
+            <span class="kv-v">${escHtml(data[k])}</span>
+          </div>`).join('')
+      : '<div class="kv-empty">— none —</div>';
+  };
+  render('outHdrRows',  'outHdrCount',  headers);
+  render('outPropRows', 'outPropCount', properties);
+}
+
+// ════════════════════════════════════════════
+//  KV PANEL MANAGEMENT
+// ════════════════════════════════════════════
+function toggleKVPanel(panelId) {
+  document.getElementById(panelId).classList.toggle('collapsed');
+}
+
+function addKVRow(type) {
+  const id = ++kvIdSeq;
+  kvData[type].push({ id, name: '', value: '' });
+  renderKV(type);
+}
+
+function deleteKVRow(type, id) {
+  kvData[type] = kvData[type].filter(r => r.id !== id);
+  renderKV(type);
+}
+
+function updateKV(type, id, field, val) {
+  const row = kvData[type].find(r => r.id === id);
+  if (row) row[field] = val;
+  const countId = type === 'headers' ? 'hdrCount' : 'propCount';
+  document.getElementById(countId).textContent =
+    kvData[type].filter(r => r.name.trim()).length;
+}
+
+function renderKV(type) {
+  const isHdr   = type === 'headers';
+  const rowsEl  = document.getElementById(isHdr ? 'hdrRows'  : 'propRows');
+  const countEl = document.getElementById(isHdr ? 'hdrCount' : 'propCount');
+  const rows    = kvData[type];
+  countEl.textContent = rows.filter(r => r.name.trim()).length;
+  rowsEl.innerHTML = rows.length === 0
+    ? '<div class="kv-empty">Click + to add</div>'
+    : rows.map(r => `
+        <div class="kv-row">
+          <input value="${escHtml(r.name)}" placeholder="name"
+            oninput="updateKV('${type}',${r.id},'name',this.value)"/>
+          <input value="${escHtml(r.value)}" placeholder="value"
+            oninput="updateKV('${type}',${r.id},'value',this.value)"/>
+          <button class="kv-del-btn" onclick="deleteKVRow('${type}',${r.id})">×</button>
+        </div>`).join('');
+}
+
+// ════════════════════════════════════════════
 //  TRANSFORM
 // ════════════════════════════════════════════
 async function runTransform() {
-  if (!saxonReady) {
-    clog('Saxon-JS not ready yet', 'error');
-    return;
-  }
+  if (!saxonReady) { clog('Saxon-JS not ready yet', 'error'); return; }
 
   const btn = document.getElementById('runBtn');
   btn.disabled = true;
   setStatus('Transforming…', 'busy');
 
-  const xmlSrc  = eds.xml?.getValue()?.trim();
-  const xsltSrc = eds.xslt?.getValue()?.trim();
+  const xmlSrc = eds.xml?.getValue()?.trim();
+  let xsltSrc  = eds.xslt?.getValue()?.trim();
 
-  if (!xmlSrc)  { clog('XML Source is empty', 'error');      resetBtn(); return; }
-  if (!xsltSrc) { clog('XSLT Stylesheet is empty', 'error'); resetBtn(); return; }
+  if (!xmlSrc)  { clog('XML Source is empty',       'error'); resetBtn(); return; }
+  if (!xsltSrc) { clog('XSLT Stylesheet is empty',  'error'); resetBtn(); return; }
 
   clog(`Starting XSLT ${xsltVersion} transform…`, 'info');
   const t0 = performance.now();
 
+  // Extract cpi: calls BEFORE stripping so we can show them in output panels
+  const hasCPI   = /cpi:set(?:Header|Property)/.test(xsltSrc);
+  const cpiCalls = hasCPI ? extractCPICalls(xsltSrc) : { headers: {}, properties: {} };
+  if (hasCPI) {
+    xsltSrc = stripCPICalls(xsltSrc);
+    clog('CPI extension calls detected — simulating setHeader / setProperty', 'info');
+  }
+
+  // Log which params are being passed
+  const namedParams = [...kvData.headers, ...kvData.properties].filter(r => r.name.trim());
+  if (namedParams.length) {
+    clog(`Passing xsl:params: ${namedParams.map(r => r.name).join(', ')}`, 'info');
+  }
+
+  const paramsXPath = buildParamsXPath();
+
   try {
-    // Correct approach for Saxon-JS browser build:
-    // Use SaxonJS.XPath.evaluate() with the XPath transform() function.
-    // This accepts raw XSLT text via 'stylesheet-text' without pre-compilation.
     const output = SaxonJS.XPath.evaluate(
       `transform(map {
         'stylesheet-text' : $xslt,
         'source-node'     : parse-xml($xml),
         'delivery-format' : 'serialized'
+        ${paramsXPath}
       })?output`,
       [],
-      {
-        params: {
-          xslt: xsltSrc,
-          xml:  xmlSrc
-        }
-      }
+      { params: { xslt: xsltSrc, xml: xmlSrc } }
     );
 
     const elapsed = (performance.now() - t0).toFixed(1);
 
     eds.out.updateOptions({ readOnly: false });
-    eds.out.setValue(output);
+    eds.out.setValue(output.trimStart().startsWith('<') ? prettyXML(output) : output);
     eds.out.updateOptions({ readOnly: true });
-    if (output.trimStart().startsWith('<')) {
-      eds.out.updateOptions({ readOnly: false });
-      eds.out.setValue(prettyXML(output));
-      eds.out.updateOptions({ readOnly: true });
+
+    // Show output headers: CPI-set ones take priority, then pass-through input headers
+    const outHdrs  = { ...cpiCalls.headers };
+    const outProps = { ...cpiCalls.properties };
+    kvData.headers.filter(r => r.name.trim() && !(r.name in outHdrs))
+                  .forEach(r => { outHdrs[r.name] = r.value; });
+    renderOutputKV(outHdrs, outProps);
+
+    if (hasCPI) {
+      const hc = Object.keys(cpiCalls.headers).length;
+      const pc = Object.keys(cpiCalls.properties).length;
+      clog(`CPI: ${hc} header(s) set, ${pc} propert${pc === 1 ? 'y' : 'ies'} set ✓`, 'success');
     }
 
     clog(`Transform complete in ${elapsed} ms ✓`, 'success');
@@ -988,15 +1259,10 @@ async function runTransform() {
   }
 
   resetBtn();
-
   function resetBtn() {
     btn.disabled = false;
-    btn.innerHTML = `
-      <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13">
-        <path d="M3 1.5l11 6.5-11 6.5V1.5z"/>
-      </svg>
-      Run Transform
-      <span class="kbd">⌘↵</span>`;
+    btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13">
+      <path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run Transform <span class="kbd">⌘↵</span>`;
   }
 }
 
@@ -1637,6 +1903,83 @@ const EXAMPLES = {
 </xsl:stylesheet>`
   },
 
+  cpiHeaders: {
+    label: 'Headers & Properties (CPI)',
+    headers: [['orderid', 'PO-2024-42']],
+    properties: [['quantity', '5']],
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<Products>
+  <Product>
+    <ProductId>P-001</ProductId>
+    <Name>Hydraulic Pump</Name>
+    <Category>Machinery</Category>
+    <Price>450.00</Price>
+    <CurrencyCode>USD</CurrencyCode>
+  </Product>
+  <Product>
+    <ProductId>P-002</ProductId>
+    <Name>Control Valve</Name>
+    <Category>Fittings</Category>
+    <Price>120.00</Price>
+    <CurrencyCode>USD</CurrencyCode>
+  </Product>
+</Products>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+  xmlns:cpi="http://sap.com/it/"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  exclude-result-prefixes="cpi xs" version="3.0">
+
+  <!-- Include exchange parameter (required for setHeader/setProperty) -->
+  <xsl:param name="exchange"/>
+
+  <!-- Bind to input header: orderid -->
+  <xsl:param name="orderid"/>
+
+  <!-- Bind to input property: quantity -->
+  <xsl:param name="quantity" select="'1'"/>
+
+  <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
+
+  <xsl:template match="/">
+
+    <!-- Set output headers via CPI extension -->
+    <xsl:value-of select="cpi:setHeader($exchange, 'content-type', 'application/xml')"/>
+    <xsl:value-of select="cpi:setHeader($exchange, 'SAP_ApplicationID', $orderid)"/>
+    <xsl:value-of select="cpi:setProperty($exchange, 'processedBy', 'XSLTForge')"/>
+
+    <PurchaseOrder>
+      <PurchaseOrderNumber>
+        <xsl:value-of select="$orderid"/>
+      </PurchaseOrderNumber>
+
+      <Items>
+        <xsl:for-each select="/Products/Product">
+          <Item>
+            <ProductId><xsl:value-of select="ProductId"/></ProductId>
+            <ProductName><xsl:value-of select="Name"/></ProductName>
+            <Category><xsl:value-of select="Category"/></Category>
+            <Quantity><xsl:value-of select="$quantity"/></Quantity>
+            <UnitPrice><xsl:value-of select="format-number(xs:decimal(Price), '#,##0.00')"/></UnitPrice>
+            <LineTotal>
+              <xsl:value-of select="format-number(xs:decimal(Price) * xs:decimal($quantity), '#,##0.00')"/>
+            </LineTotal>
+            <Currency><xsl:value-of select="CurrencyCode"/></Currency>
+          </Item>
+        </xsl:for-each>
+      </Items>
+
+      <OrderTotal>
+        <xsl:value-of select="format-number(
+          sum(/Products/Product/xs:decimal(Price)) * xs:decimal($quantity),
+          '#,##0.00')"/>
+      </OrderTotal>
+    </PurchaseOrder>
+  </xsl:template>
+
+</xsl:stylesheet>`
+  },
+
   errorHandling: {
     label: 'Error Handling (xsl:try)',
     xml: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1758,6 +2101,25 @@ function loadExample(key) {
   eds.out?.updateOptions({ readOnly: false });
   eds.out?.setValue('');
   eds.out?.updateOptions({ readOnly: true });
+  // Reset output KV panels
+  renderOutputKV({}, {});
+  // If example ships with headers/properties, pre-fill them
+  kvData = { headers: [], properties: [] };
+  kvIdSeq = 0;
+  if (ex.headers) {
+    ex.headers.forEach(([n,v]) => {
+      kvIdSeq++;
+      kvData.headers.push({ id: kvIdSeq, name: n, value: v });
+    });
+  }
+  if (ex.properties) {
+    ex.properties.forEach(([n,v]) => {
+      kvIdSeq++;
+      kvData.properties.push({ id: kvIdSeq, name: n, value: v });
+    });
+  }
+  renderKV('headers');
+  renderKV('properties');
   document.getElementById('exMenu').classList.remove('open');
   document.getElementById('exBtn').classList.remove('open');
   clog(`Example loaded: "${ex.label}" — press Run Transform to execute`, 'success');
@@ -1781,7 +2143,7 @@ function toggleTheme() {
 
 // Restore saved theme preference
 (function() {
-  if (localStorage.getItem('xforge-theme') === 'light') {
+  if (localStorage.getItem('xforge-theme') !== 'dark') {
     document.body.classList.add('light');
     document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('themeToggle');
@@ -1874,7 +2236,7 @@ require(['vs/editor/editor.main'], () => {
   }
 
   const shared = {
-    theme: document.body.classList.contains('light') ? 'xforge-light' : 'xforge',
+    theme: 'xforge-light',
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
     fontSize: 13,
     lineHeight: 22,
@@ -1926,7 +2288,10 @@ require(['vs/editor/editor.main'], () => {
       hideLoader();
       clog('Saxon-JS 2.x loaded · XSLT 3.0 engine ready ✓', 'success');
       clog('Shortcut: Ctrl+Enter (Cmd+Enter on Mac) to run transform', 'info');
-      clog('Identity Transform example loaded. Select from Examples menu or press Run!', 'info');
+      clog('Identity Transform loaded. Use Examples menu to load CPI scenarios.', 'info');
+      renderKV('headers');
+      renderKV('properties');
+      renderOutputKV({}, {});
       setStatus('Ready', 'ok');
     }
   }, 200);
