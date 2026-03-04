@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XSLTForge — SAP CPI Developer IDE</title>
+  <title>XSLTDebugX — SAP CPI Developer IDE</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
   <script src="./lib/SaxonJS2.js"></script>
@@ -756,7 +756,7 @@
 
 <!-- Loading -->
 <div id="loadingOverlay">
-  <div class="load-logo">XSLT<span>Forge</span></div>
+  <div class="load-logo">XSLTDebug<span>X</span></div>
   <div class="load-bar"><div class="load-bar-fill"></div></div>
   <div class="load-text" id="loadTxt">Initializing…</div>
 </div>
@@ -764,8 +764,8 @@
 <!-- Header -->
 <header class="header">
   <div class="logo">
-    <div class="logo-mark">XF</div>
-    <span class="logo-name">XSLTForge</span>
+    <div class="logo-mark">XD</div>
+    <span class="logo-name">XSLTDebugX</span>
     <span class="logo-tag">SAP CPI</span>
   </div>
 
@@ -980,6 +980,7 @@
   </div>
   <div class="stat">Saxon-JS 2.x · XSLT 3.0 Engine</div>
   <div class="stat-spacer"></div>
+  <div class="stat" style="opacity:0.6;font-size:10px;">Developed by Sunil Pharswan</div>
   <div class="stat" id="statTime"></div>
 </div>
 
@@ -2333,7 +2334,7 @@ const EXAMPLES = {
   <xsl:value-of select="cpi:setHeader($exchange, 'X-Source-System',   $sourceSystem)"/>
 
   <!-- Set exchange properties -->
-  <xsl:value-of select="cpi:setProperty($exchange, 'processedBy',  'XSLTForge')"/>
+  <xsl:value-of select="cpi:setProperty($exchange, 'processedBy',  'XSLTDebugX')"/>
   <xsl:value-of select="cpi:setProperty($exchange, 'processMode',  $processMode)"/>
 
   <xsl:template match="Products">
