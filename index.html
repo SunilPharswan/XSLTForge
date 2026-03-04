@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XSLTForge — SAP CPI Developer IDE</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+  <script src="./lib/SaxonJS2.js"></script>
+  <style>
+    :root {
+      --bg-base:        #080c12;
+      --bg-panel:       #0d1420;
+      --bg-header:      #0a0f1a;
+      --bg-editor:      #0a1018;
+      --border:         #182030;
+      --border-bright:  #1e3050;
+      --sap-blue:       #0070f2;
+      --sap-blue-glow:  rgba(0,112,242,0.25);
+      --sap-gold:       #f5a524;
+      --text-primary:   #c8d8e8;
+      --text-secondary: #6888a8;
+      --text-dim:       #384858;
+      --success:        #3fb950;
+      --error:          #f85149;
+      --warning:        #f5a524;
+      --scrollbar:      #182030;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── LOADING ── */
+    #loadingOverlay {
+      position: fixed; inset: 0;
+      background: var(--bg-base);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 18px; z-index: 9999;
+      transition: opacity 0.5s ease;
+    }
+    #loadingOverlay.hidden { opacity: 0; pointer-events: none; }
+    .load-logo {
+      font-size: 30px; font-weight: 800; letter-spacing: -1.5px;
+      color: var(--text-primary);
+    }
+    .load-logo span { color: var(--sap-blue); }
+    .load-bar {
+      width: 180px; height: 2px;
+      background: var(--border); border-radius: 2px; overflow: hidden;
+    }
+    .load-bar-fill {
+      height: 100%; background: var(--sap-blue);
+      animation: barAnim 1.8s ease-in-out infinite;
+    }
+    @keyframes barAnim {
+      0%   { width: 0%;   margin-left: 0; }
+      50%  { width: 60%;  margin-left: 20%; }
+      100% { width: 0%;   margin-left: 100%; }
+    }
+    .load-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--text-dim); letter-spacing: 0.5px;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border);
+      height: 50px;
+      display: flex; align-items: center;
+      padding: 0 14px; gap: 12px;
+      flex-shrink: 0;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 9px; text-decoration: none;
+    }
+    .logo-mark {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, #0060d0, #00a0ff);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700; font-size: 12px; color: #fff;
+      box-shadow: 0 0 14px rgba(0,112,242,0.4);
+    }
+    .logo-name {
+      font-size: 17px; font-weight: 800; letter-spacing: -0.5px;
+      color: var(--text-primary);
+    }
+    .logo-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 500;
+      padding: 2px 8px; border-radius: 20px;
+      background: rgba(0,112,242,0.12);
+      border: 1px solid rgba(0,112,242,0.28);
+      color: #60a0f8;
+      letter-spacing: 0.6px;
+    }
+    .h-spacer { flex: 1; }
+    .h-group {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .h-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--text-dim);
+    }
+    .seg-ctrl {
+      display: flex;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px; overflow: hidden;
+    }
+    .seg-btn {
+      padding: 5px 13px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .seg-btn.active {
+      background: var(--sap-blue);
+      color: #fff;
+    }
+    .seg-btn:hover:not(.active) {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.04);
+    }
+    .run-btn {
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 18px;
+      background: linear-gradient(135deg, #0068e0, #0098f0);
+      border: none; border-radius: 7px;
+      color: #fff; cursor: pointer;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px; font-weight: 700;
+      letter-spacing: 0.1px;
+      box-shadow: 0 0 22px rgba(0,112,242,0.35);
+      transition: all 0.2s;
+    }
+    .run-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 28px rgba(0,112,242,0.5); }
+    .run-btn:active { transform: translateY(0); }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .run-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    /* keyboard shortcut hint */
+    .kbd {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.1);
+      padding: 1px 5px; border-radius: 3px;
+    }
+
+    /* ── MAIN 3-PANE ── */
+    .main {
+      display: flex; flex: 1; overflow: hidden;
+    }
+
+    .pane {
+      display: flex; flex-direction: column;
+      flex: 1; min-width: 0;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .pane:last-child { border-right: none; }
+
+    .pane-bar {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      height: 36px; flex-shrink: 0;
+      display: flex; align-items: center;
+      padding: 0 12px; gap: 8px;
+    }
+    .pane-indicator {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .ind-xml   { background: #3fb950; box-shadow: 0 0 8px rgba(63,185,80,0.5); }
+    .ind-xslt  { background: var(--sap-blue); box-shadow: 0 0 8px var(--sap-blue-glow); }
+    .ind-out   { background: var(--sap-gold); box-shadow: 0 0 8px rgba(245,165,36,0.4); }
+
+    .pane-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 1.3px; text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .pane-actions { margin-left: auto; display: flex; gap: 3px; }
+    .pane-act-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: var(--text-dim);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 2px 7px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .pane-act-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.04);
+      border-color: var(--border);
+    }
+
+    .editor-wrap {
+      flex: 1; overflow: hidden; position: relative;
+    }
+    .editor-wrap > div {
+      position: absolute; inset: 0;
+    }
+
+    /* ── OUTPUT PANE ── */
+    .out-pane-body {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .out-editor-zone {
+      flex: 1; overflow: hidden; position: relative;
+    }
+    .out-editor-zone > div {
+      position: absolute; inset: 0;
+    }
+
+    /* ── CONSOLE ── */
+    .console {
+      height: 130px; flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .console-bar {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      height: 28px; flex-shrink: 0;
+      display: flex; align-items: center;
+      padding: 0 12px; gap: 6px;
+    }
+    .console-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .console-body {
+      flex: 1; overflow-y: auto;
+      padding: 6px 14px;
+      background: #05080e;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+    }
+    .console-body::-webkit-scrollbar { width: 5px; }
+    .console-body::-webkit-scrollbar-track { background: transparent; }
+    .console-body::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+    .log-line { line-height: 1.7; }
+    .log-line .ts { color: var(--text-dim); margin-right: 8px; }
+    .log-line.info .msg    { color: var(--text-secondary); }
+    .log-line.success .msg { color: var(--success); }
+    .log-line.error .msg   { color: var(--error); }
+    .log-line.warn .msg    { color: var(--warning); }
+
+    /* ── STATUS BAR ── */
+    .status-bar {
+      height: 22px; flex-shrink: 0;
+      background: linear-gradient(90deg, #004eb8, #0068e0);
+      display: flex; align-items: center;
+      padding: 0 12px; gap: 14px;
+    }
+    .stat {
+      display: flex; align-items: center; gap: 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: rgba(255,255,255,0.75);
+    }
+    .stat-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: rgba(255,255,255,0.5);
+    }
+    .stat-dot.ok   { background: #3fb950; }
+    .stat-dot.busy { background: var(--sap-gold); animation: pulse 1s infinite; }
+    .stat-dot.err  { background: var(--error); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .stat-spacer { flex: 1; }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loadingOverlay">
+  <div class="load-logo">XSLT<span>Forge</span></div>
+  <div class="load-bar"><div class="load-bar-fill"></div></div>
+  <div class="load-text" id="loadTxt">Initializing…</div>
+</div>
+
+<!-- Header -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">XF</div>
+    <span class="logo-name">XSLTForge</span>
+    <span class="logo-tag">SAP CPI</span>
+  </div>
+
+  <div class="h-spacer"></div>
+
+  <div class="h-group">
+    <span class="h-label">Engine</span>
+    <div class="seg-ctrl">
+      <button class="seg-btn" id="v20" onclick="setVersion('2.0')">2.0</button>
+      <button class="seg-btn active" id="v30" onclick="setVersion('3.0')">3.0</button>
+    </div>
+  </div>
+
+  <div class="h-group">
+    <span class="h-label">Output</span>
+    <div class="seg-ctrl">
+      <button class="seg-btn active" id="oXML" onclick="setOutputMode('xml')">XML</button>
+      <button class="seg-btn" id="oHTML" onclick="setOutputMode('html')">HTML</button>
+      <button class="seg-btn" id="oTXT" onclick="setOutputMode('text')">Text</button>
+    </div>
+  </div>
+
+  <button class="run-btn" id="runBtn" onclick="runTransform()">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg>
+    Run Transform
+    <span class="kbd">⌘↵</span>
+  </button>
+</header>
+
+<!-- 3-Pane Main -->
+<div class="main">
+
+  <!-- Pane 1 — XML Input -->
+  <div class="pane">
+    <div class="pane-bar">
+      <div class="pane-indicator ind-xml"></div>
+      <span class="pane-title">XML Source</span>
+      <div class="pane-actions">
+        <button class="pane-act-btn" onclick="loadSampleXML()">Sample</button>
+        <button class="pane-act-btn" onclick="fmtEditor('xml')">Format</button>
+        <button class="pane-act-btn" onclick="clearPane('xml')">Clear</button>
+      </div>
+    </div>
+    <div class="editor-wrap">
+      <div id="xmlEd"></div>
+    </div>
+  </div>
+
+  <!-- Pane 2 — XSLT -->
+  <div class="pane">
+    <div class="pane-bar">
+      <div class="pane-indicator ind-xslt"></div>
+      <span class="pane-title">XSLT Stylesheet</span>
+      <div class="pane-actions">
+        <button class="pane-act-btn" onclick="loadSampleXSLT()">Sample</button>
+        <button class="pane-act-btn" onclick="fmtEditor('xslt')">Format</button>
+        <button class="pane-act-btn" onclick="clearPane('xslt')">Clear</button>
+      </div>
+    </div>
+    <div class="editor-wrap">
+      <div id="xsltEd"></div>
+    </div>
+  </div>
+
+  <!-- Pane 3 — Output + Console -->
+  <div class="pane">
+    <div class="pane-bar">
+      <div class="pane-indicator ind-out"></div>
+      <span class="pane-title">Output</span>
+      <div class="pane-actions">
+        <button class="pane-act-btn" onclick="copyOutput()">Copy</button>
+        <button class="pane-act-btn" onclick="clearPane('out')">Clear</button>
+      </div>
+    </div>
+    <div class="out-pane-body">
+      <div class="out-editor-zone">
+        <div id="outEd"></div>
+      </div>
+      <div class="console">
+        <div class="console-bar">
+          <span class="console-title">Console</span>
+          <button class="pane-act-btn" style="margin-left:auto" onclick="clearConsole()">Clear</button>
+        </div>
+        <div class="console-body" id="consoleBody"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Status Bar -->
+<div class="status-bar">
+  <div class="stat">
+    <div class="stat-dot ok" id="statDot"></div>
+    <span id="statTxt">Ready</span>
+  </div>
+  <div class="stat">Saxon-JS 2.x · XSLT 3.0 Engine</div>
+  <div class="stat-spacer"></div>
+  <div class="stat" id="statTime"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let eds = { xml: null, xslt: null, out: null };
+let xsltVersion = '3.0';
+let outputMode  = 'xml';
+let saxonReady  = false;
+
+// ════════════════════════════════════════════
+//  SAMPLE DATA
+// ════════════════════════════════════════════
+const SAMPLE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<Orders xmlns="urn:sap:cpi:orders">
+  <Order>
+    <OrderId>PO-2024-0042</OrderId>
+    <Vendor>SAP-VENDOR-001</Vendor>
+    <CreatedOn>2024-03-15</CreatedOn>
+    <Currency>USD</Currency>
+    <Items>
+      <Item>
+        <LineNo>10</LineNo>
+        <Material>MAT-STEEL-HR-001</Material>
+        <Description>Hot-Rolled Steel Coil</Description>
+        <Qty unit="TO">12.5</Qty>
+        <UnitPrice>890.00</UnitPrice>
+      </Item>
+      <Item>
+        <LineNo>20</LineNo>
+        <Material>MAT-BOLT-M12-002</Material>
+        <Description>Hex Bolt M12x80</Description>
+        <Qty unit="EA">2500</Qty>
+        <UnitPrice>0.38</UnitPrice>
+      </Item>
+      <Item>
+        <LineNo>30</LineNo>
+        <Material>MAT-PIPE-DN50-003</Material>
+        <Description>Carbon Steel Pipe DN50</Description>
+        <Qty unit="M">45</Qty>
+        <UnitPrice>32.50</UnitPrice>
+      </Item>
+    </Items>
+  </Order>
+  <Order>
+    <OrderId>PO-2024-0043</OrderId>
+    <Vendor>SAP-VENDOR-007</Vendor>
+    <CreatedOn>2024-03-16</CreatedOn>
+    <Currency>EUR</Currency>
+    <Items>
+      <Item>
+        <LineNo>10</LineNo>
+        <Material>MAT-MOTOR-IE3-010</Material>
+        <Description>IE3 Electric Motor 11kW</Description>
+        <Qty unit="EA">3</Qty>
+        <UnitPrice>1450.00</UnitPrice>
+      </Item>
+    </Items>
+  </Order>
+</Orders>`;
+
+const SAMPLE_XSLT_30 = `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0"
+  xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:o="urn:sap:cpi:orders"
+  exclude-result-prefixes="xs o">
+
+  <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
+
+  <!--
+    XSLTForge · SAP CPI Sample
+    Transforms SAP Purchase Orders into a summary format.
+    Uses XSLT 3.0 features: xsl:mode, format-number, current-dateTime()
+  -->
+
+  <xsl:template match="/">
+    <PurchaseOrderSummary
+      processedAt="{format-dateTime(current-dateTime(),
+                    '[D01]/[M01]/[Y0001] [H01]:[m01]:[s01]')}"
+      engine="Saxon-JS-3.0">
+
+      <xsl:apply-templates select="o:Orders/o:Order"/>
+
+      <Totals>
+        <OrderCount>
+          <xsl:value-of select="count(o:Orders/o:Order)"/>
+        </OrderCount>
+        <TotalLineItems>
+          <xsl:value-of select="count(o:Orders/o:Order/o:Items/o:Item)"/>
+        </TotalLineItems>
+        <GrandTotal>
+          <xsl:value-of select="
+            format-number(
+              sum(o:Orders/o:Order/o:Items/o:Item/(xs:decimal(o:UnitPrice)
+                  * xs:decimal(o:Qty))),
+              '#,##0.00')"/>
+        </GrandTotal>
+      </Totals>
+
+    </PurchaseOrderSummary>
+  </xsl:template>
+
+  <xsl:template match="o:Order">
+    <Order id="{o:OrderId}" currency="{o:Currency}">
+      <Vendor><xsl:value-of select="o:Vendor"/></Vendor>
+      <Date><xsl:value-of select="o:CreatedOn"/></Date>
+
+      <LineItems count="{count(o:Items/o:Item)}">
+        <xsl:apply-templates select="o:Items/o:Item"/>
+      </LineItems>
+
+      <OrderValue>
+        <xsl:value-of select="
+          format-number(
+            sum(o:Items/o:Item/(xs:decimal(o:UnitPrice) * xs:decimal(o:Qty))),
+            '#,##0.00')"/>
+      </OrderValue>
+    </Order>
+  </xsl:template>
+
+  <xsl:template match="o:Item">
+    <Item line="{o:LineNo}">
+      <Material><xsl:value-of select="o:Material"/></Material>
+      <Description><xsl:value-of select="o:Description"/></Description>
+      <Quantity unit="{o:Qty/@unit}">
+        <xsl:value-of select="o:Qty"/>
+      </Quantity>
+      <LineValue>
+        <xsl:value-of select="
+          format-number(xs:decimal(o:UnitPrice) * xs:decimal(o:Qty), '#,##0.00')"/>
+      </LineValue>
+    </Item>
+  </xsl:template>
+
+</xsl:stylesheet>`;
+
+const SAMPLE_XSLT_20 = `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="2.0"
+  xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:o="urn:sap:cpi:orders"
+  exclude-result-prefixes="xs o">
+
+  <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
+
+  <!--
+    XSLTForge · SAP CPI Sample (XSLT 2.0)
+    Transforms SAP Purchase Orders using XSLT 2.0 features.
+  -->
+
+  <xsl:template match="/">
+    <PurchaseOrderSummary>
+      <xsl:apply-templates select="o:Orders/o:Order"/>
+      <OrderCount>
+        <xsl:value-of select="count(o:Orders/o:Order)"/>
+      </OrderCount>
+    </PurchaseOrderSummary>
+  </xsl:template>
+
+  <xsl:template match="o:Order">
+    <Order id="{o:OrderId}">
+      <Vendor><xsl:value-of select="o:Vendor"/></Vendor>
+      <Date><xsl:value-of select="o:CreatedOn"/></Date>
+      <Currency><xsl:value-of select="o:Currency"/></Currency>
+      <ItemCount>
+        <xsl:value-of select="count(o:Items/o:Item)"/>
+      </ItemCount>
+      <OrderTotal>
+        <xsl:value-of select="
+          format-number(
+            sum(o:Items/o:Item/(xs:decimal(o:UnitPrice) * xs:decimal(o:Qty))),
+            '#,##0.00')"/>
+      </OrderTotal>
+    </Order>
+  </xsl:template>
+
+</xsl:stylesheet>`;
+
+// ════════════════════════════════════════════
+//  CONSOLE
+// ════════════════════════════════════════════
+function clog(msg, type = 'info') {
+  const body = document.getElementById('consoleBody');
+  const line = document.createElement('div');
+  line.className = `log-line ${type}`;
+  const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  line.innerHTML = `<span class="ts">${ts}</span><span class="msg">${escHtml(msg)}</span>`;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function clearConsole() {
+  document.getElementById('consoleBody').innerHTML = '';
+}
+
+// ════════════════════════════════════════════
+//  STATUS
+// ════════════════════════════════════════════
+function setStatus(txt, state = 'ok') {
+  document.getElementById('statTxt').textContent = txt;
+  const d = document.getElementById('statDot');
+  d.className = 'stat-dot ' + state;
+}
+
+// ════════════════════════════════════════════
+//  VERSION / OUTPUT MODE
+// ════════════════════════════════════════════
+function setVersion(v) {
+  xsltVersion = v;
+  document.getElementById('v20').classList.toggle('active', v === '2.0');
+  document.getElementById('v30').classList.toggle('active', v === '3.0');
+  clog(`Engine set to XSLT ${v}`, 'info');
+}
+
+function setOutputMode(m) {
+  outputMode = m;
+  ['xml','html','text'].forEach(x => {
+    document.getElementById('o'+x.toUpperCase()[0]+x.slice(1))
+      ?.classList.toggle('active', x === m);
+  });
+  if (eds.out) {
+    const lang = m === 'xml' ? 'xml' : m === 'html' ? 'html' : 'plaintext';
+    monaco.editor.setModelLanguage(eds.out.getModel(), lang);
+  }
+  clog(`Output mode: ${m.toUpperCase()}`, 'info');
+}
+
+// ════════════════════════════════════════════
+//  SAMPLE LOADERS
+// ════════════════════════════════════════════
+function loadSampleXML() {
+  eds.xml?.setValue(SAMPLE_XML);
+  clog('Loaded SAP CPI sample XML (Purchase Orders)', 'info');
+}
+
+function loadSampleXSLT() {
+  const s = xsltVersion === '3.0' ? SAMPLE_XSLT_30 : SAMPLE_XSLT_20;
+  eds.xslt?.setValue(s);
+  clog(`Loaded XSLT ${xsltVersion} sample stylesheet`, 'info');
+}
+
+function clearPane(which) {
+  const map = { xml: eds.xml, xslt: eds.xslt, out: eds.out };
+  map[which]?.setValue('');
+}
+
+function copyOutput() {
+  const v = eds.out?.getValue() ?? '';
+  if (!v) return clog('Nothing to copy', 'warn');
+  navigator.clipboard.writeText(v)
+    .then(() => clog('Output copied to clipboard ✓', 'success'))
+    .catch(() => clog('Clipboard access denied', 'error'));
+}
+
+function fmtEditor(which) {
+  const ed = which === 'xml' ? eds.xml : eds.xslt;
+  ed?.getAction('editor.action.formatDocument')?.run();
+}
+
+// ════════════════════════════════════════════
+//  TRANSFORM
+// ════════════════════════════════════════════
+async function runTransform() {
+  if (!saxonReady) {
+    clog('Saxon-JS not ready yet', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  setStatus('Transforming…', 'busy');
+
+  const xmlSrc  = eds.xml?.getValue()?.trim();
+  const xsltSrc = eds.xslt?.getValue()?.trim();
+
+  if (!xmlSrc)  { clog('XML Source is empty', 'error');      resetBtn(); return; }
+  if (!xsltSrc) { clog('XSLT Stylesheet is empty', 'error'); resetBtn(); return; }
+
+  clog(`Starting XSLT ${xsltVersion} transform…`, 'info');
+  const t0 = performance.now();
+
+  try {
+    // Correct approach for Saxon-JS browser build:
+    // Use SaxonJS.XPath.evaluate() with the XPath transform() function.
+    // This accepts raw XSLT text via 'stylesheet-text' without pre-compilation.
+    const output = SaxonJS.XPath.evaluate(
+      `transform(map {
+        'stylesheet-text' : $xslt,
+        'source-node'     : parse-xml($xml),
+        'delivery-format' : 'serialized'
+      })?output`,
+      [],
+      {
+        params: {
+          xslt: xsltSrc,
+          xml:  xmlSrc
+        }
+      }
+    );
+
+    const elapsed = (performance.now() - t0).toFixed(1);
+
+    eds.out.updateOptions({ readOnly: false });
+    eds.out.setValue(output);
+    eds.out.updateOptions({ readOnly: true });
+
+    // Auto-format if XML-looking output
+    if (output.trimStart().startsWith('<')) {
+      setTimeout(() => eds.out.getAction('editor.action.formatDocument')?.run(), 80);
+    }
+
+    clog(`Transform complete in ${elapsed} ms ✓`, 'success');
+    document.getElementById('statTime').textContent = `${elapsed} ms`;
+    setStatus(`Done · ${elapsed} ms`, 'ok');
+
+  } catch (err) {
+    const msg = (err.message || String(err)).split('\n')[0];
+    clog(`Error: ${msg}`, 'error');
+    setStatus('Transform failed', 'err');
+  }
+
+  resetBtn();
+
+  function resetBtn() {
+    btn.disabled = false;
+    btn.innerHTML = `
+      <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13">
+        <path d="M3 1.5l11 6.5-11 6.5V1.5z"/>
+      </svg>
+      Run Transform
+      <span class="kbd">⌘↵</span>`;
+  }
+}
+
+// ════════════════════════════════════════════
+//  MONACO INIT
+// ════════════════════════════════════════════
+require.config({
+  paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }
+});
+
+document.getElementById('loadTxt').textContent = 'Loading Monaco Editor…';
+
+require(['vs/editor/editor.main'], () => {
+  document.getElementById('loadTxt').textContent = 'Defining theme…';
+
+  monaco.editor.defineTheme('xforge', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'tag',             foreground: '7dd3fc' },
+      { token: 'attribute.name',  foreground: '93c5fd' },
+      { token: 'attribute.value', foreground: '86efac' },
+      { token: 'string',          foreground: '86efac' },
+      { token: 'delimiter.xml',   foreground: '475569' },
+      { token: 'metatag.xml',     foreground: 'f472b6' },
+      { token: 'comment',         foreground: '374357', fontStyle: 'italic' },
+      { token: 'number',          foreground: 'fbbf24' },
+    ],
+    colors: {
+      'editor.background':                  '#070c14',
+      'editor.foreground':                  '#c8d8e8',
+      'editorLineNumber.foreground':        '#1e3050',
+      'editorLineNumber.activeForeground':  '#4060a0',
+      'editor.lineHighlightBackground':     '#0d1828',
+      'editor.lineHighlightBorderColor':    '#182030',
+      'editorCursor.foreground':            '#0070f2',
+      'editor.selectionBackground':         '#183060',
+      'editor.inactiveSelectionBackground': '#10203a',
+      'editorIndentGuide.background1':      '#101828',
+      'editorIndentGuide.activeBackground1':'#1e3050',
+      'scrollbarSlider.background':         '#182030aa',
+      'scrollbarSlider.hoverBackground':    '#1e3050aa',
+      'editorWidget.background':            '#0d1420',
+      'input.background':                   '#0a1020',
+      'dropdown.background':                '#0d1420',
+    }
+  });
+
+  const shared = {
+    theme: 'xforge',
+    fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+    fontSize: 13,
+    lineHeight: 22,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    folding: true,
+    renderLineHighlight: 'all',
+    smoothScrolling: true,
+    cursorBlinking: 'smooth',
+    cursorSmoothCaretAnimation: 'on',
+    bracketPairColorization: { enabled: true },
+    padding: { top: 10, bottom: 10 },
+    wordWrap: 'off',
+    suggest: { showWords: false },
+    'semanticHighlighting.enabled': true,
+  };
+
+  eds.xml = monaco.editor.create(
+    document.getElementById('xmlEd'),
+    { ...shared, language: 'xml', value: SAMPLE_XML }
+  );
+
+  eds.xslt = monaco.editor.create(
+    document.getElementById('xsltEd'),
+    { ...shared, language: 'xml', value: SAMPLE_XSLT_30 }
+  );
+
+  eds.out = monaco.editor.create(
+    document.getElementById('outEd'),
+    { ...shared, language: 'xml', value: '', readOnly: true, renderValidationDecorations: 'off' }
+  );
+
+  // Ctrl/Cmd+Enter → run
+  [eds.xml, eds.xslt].forEach(ed => {
+    ed.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
+      runTransform
+    );
+  });
+
+  document.getElementById('loadTxt').textContent = 'Loading Saxon-JS…';
+
+  // Wait for Saxon-JS
+  const checkSaxon = setInterval(() => {
+    if (typeof SaxonJS !== 'undefined') {
+      clearInterval(checkSaxon);
+      saxonReady = true;
+      hideLoader();
+      clog('Saxon-JS 2.x loaded · XSLT 3.0 engine ready ✓', 'success');
+      clog('Shortcut: Ctrl+Enter (Cmd+Enter on Mac) to run transform', 'info');
+      clog('Sample data pre-loaded. Click "Run Transform" to try it!', 'info');
+      setStatus('Ready', 'ok');
+    }
+  }, 200);
+
+  // Timeout fallback
+  setTimeout(() => {
+    if (!saxonReady) {
+      clearInterval(checkSaxon);
+      hideLoader();
+      clog('⚠ Saxon-JS failed to load. Check your internet connection.', 'error');
+      setStatus('Saxon-JS unavailable', 'err');
+    }
+  }, 12000);
+});
+
+function hideLoader() {
+  const el = document.getElementById('loadingOverlay');
+  el.classList.add('hidden');
+  setTimeout(() => el.remove(), 600);
+}
+</script>
+</body>
+</html>
