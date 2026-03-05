@@ -514,6 +514,36 @@
     }
 
     /* ── THEME TOGGLE ── */
+    .rainbow-toggle {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 10px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .rainbow-toggle:hover { color: var(--text-primary); border-color: var(--border-bright); background: var(--bg-header); }
+    .rainbow-toggle.active {
+      border-color: rgba(0,112,242,0.5);
+      background: rgba(0,112,242,0.1);
+      color: #60a0f8;
+    }
+    .rainbow-toggle .rb-swatch {
+      display: flex; gap: 2px; align-items: center;
+    }
+    .rainbow-toggle .rb-swatch span {
+      display: inline-block;
+      width: 5px; height: 12px; border-radius: 2px;
+    }
+
+    /* ── THEME TOGGLE ── */
     .theme-toggle {
       width: 32px; height: 32px;
       display: flex; align-items: center; justify-content: center;
@@ -750,6 +780,32 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px; color: var(--text-dim);
     }
+
+    /* ── RAINBOW XML DELIMITERS (depth-based inline decorations) ── */
+    .xml-d1 { color: #2e6db4 !important; }
+    .xml-d2 { color: #2e8b4a !important; }
+    .xml-d3 { color: #b47a2e !important; }
+    .xml-d4 { color: #7a2eb4 !important; }
+    .xml-d5 { color: #2eb4b4 !important; }
+    .xml-d6 { color: #b42e5a !important; }
+    body.light .xml-d1 { color: #2e6db4 !important; }
+    body.light .xml-d2 { color: #1a7f37 !important; }
+    body.light .xml-d3 { color: #c87800 !important; }
+    body.light .xml-d4 { color: #6f42c1 !important; }
+    body.light .xml-d5 { color: #0969a0 !important; }
+    body.light .xml-d6 { color: #cf222e !important; }
+
+    /* ── XSL TAG + ATTRIBUTE NAME INLINE COLORS (dark) ── */
+    /* Regular XML element names — teal */
+    .xml-tag-plain  { color: #56b6c2 !important; font-weight: 600; }
+    /* xsl: / other namespace tags — warm amber-orange, clearly distinct */
+    .xml-tag-xsl    { color: #56b6c2 !important; font-weight: 700; }
+    /* Attribute names — soft lavender, different from both tag types */
+    .xml-attr-name  { color: #c084fc !important; }
+    /* Light theme overrides */
+    body.light .xml-tag-plain { color: #0550ae !important; font-weight: 600; }
+    body.light .xml-tag-xsl   { color: #0550ae !important; font-weight: 700; }
+    body.light .xml-attr-name { color: #6f42c1 !important; }
   </style>
 </head>
 <body class="light">
@@ -774,6 +830,16 @@
   <button class="ex-btn" id="exBtn" onclick="openExModal()">
     <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M1 3h14v1.5H1V3zm0 4h14v1.5H1V7zm0 4h14v1.5H1V11z"/></svg>
     Examples
+  </button>
+
+  <button class="rainbow-toggle active" id="rainbowToggle" onclick="toggleRainbow()" title="Toggle rainbow line & delimiter colors">
+    <div class="rb-swatch">
+      <span style="background:#2e6db4"></span>
+      <span style="background:#2e8b4a"></span>
+      <span style="background:#b47a2e"></span>
+      <span style="background:#7a2eb4"></span>
+    </div>
+    Rainbow
   </button>
 
   <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark theme">☀️</button>
@@ -948,7 +1014,7 @@
   <div class="ex-modal">
     <div class="ex-modal-header">
       <span class="ex-modal-title">Example Library</span>
-      <span class="ex-modal-count" id="exModalCount">11 examples</span>
+      <span class="ex-modal-count" id="exModalCount">16 examples</span>
       <div class="ex-search-wrap">
         <svg class="ex-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><path d="M11 11l3 3"/></svg>
         <input class="ex-modal-search" id="exModalSearch" placeholder="Search examples…" oninput="filterExamples()" autocomplete="off">
@@ -1012,12 +1078,126 @@ function clog(msg, type = 'info') {
   line.innerHTML = `<span class="ts">${ts}</span><span class="msg">${escHtml(msg)}</span>`;
   body.appendChild(line);
   body.scrollTop = body.scrollHeight;
+  // Track errors/warnings for the minimised-console badge
+  if (type === 'error' || type === 'warn') {
+    consoleErrCount++;
+    updateConsoleErrBadge();
+    // Auto-restore console if minimised so errors aren't silently hidden
+    if (consoleState === 'minimized') setConsoleState('normal');
+  }
 }
 
 function escHtml(s) {
   return String(s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+// ════════════════════════════════════════════
+//  RAINBOW DELIMITER DECORATIONS
+// ════════════════════════════════════════════
+// Decoration collections keyed by editor instance
+const _delimDecors = new WeakMap();
+
+function applyDelimiterColors(editor) {
+  const model = editor.getModel();
+  if (!model) return;
+  if (!rainbowEnabled) return;
+  const text = model.getValue();
+  const lines = text.split('\n');
+  const ranges = [];
+  let depth = 0;
+
+  // Regex: captures one tag token at a time
+  // Group 1: tag content between < and >  (we scan char by char for multi-line safety)
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    let i = 0;
+    while (i < line.length) {
+      if (line[i] !== '<') { i++; continue; }
+
+      const isClose   = line[i + 1] === '/';
+      const isPI      = line[i + 1] === '?' || line[i + 1] === '!';
+
+      if (isClose && depth > 0) depth--;
+
+      const d = Math.min(Math.max(depth + 1, 1), 6);
+
+      // Color the opening <
+      ranges.push({
+        range: new monaco.Range(li + 1, i + 1, li + 1, i + 2),
+        options: { inlineClassName: `xml-d${d}` }
+      });
+
+      // Find matching >  (stay on same line — multi-line tags are rare in practice)
+      let j = i + 1;
+      while (j < line.length && line[j] !== '>') j++;
+
+      if (j < line.length) {
+        // Slice of tag innards: e.g. "xsl:template match="x"" or "/xsl:template"
+        const inner     = line.slice(i + 1, j); // excludes < and >
+        const selfClose = inner.endsWith('/');
+
+        // ── Color the > ──
+        ranges.push({
+          range: new monaco.Range(li + 1, j + 1, li + 1, j + 2),
+          options: { inlineClassName: `xml-d${d}` }
+        });
+
+        if (!isPI) {
+          // ── Parse tag name and attributes inside this tag ──
+          // Strip leading / for closing tags
+          const body    = inner.replace(/^\//, '').trimStart();
+          // Tag name ends at first whitespace, / or end
+          const nameMatch = body.match(/^([A-Za-z_][\w:.-]*)/);
+          if (nameMatch) {
+            const tagName   = nameMatch[1];
+            const nameStart = i + 1 + (isClose ? 1 : 0) + (inner.length - body.length) + 1;
+            const isXslTag  = /^[a-z]+:/.test(tagName); // any ns-prefixed tag
+            const cls       = isXslTag ? 'xml-tag-xsl' : 'xml-tag-plain';
+            ranges.push({
+              range: new monaco.Range(li + 1, nameStart, li + 1, nameStart + tagName.length),
+              options: { inlineClassName: cls }
+            });
+
+            // ── Color attribute names ──
+            // Find attr="value" pairs in the remainder after the tag name
+            const attrStr = body.slice(nameMatch[0].length);
+            let offset    = nameStart + tagName.length; // absolute col offset
+            const attrRe  = /([A-Za-z_][\w:.-]*)\s*=/g;
+            let am;
+            while ((am = attrRe.exec(attrStr)) !== null) {
+              const attrStart = offset + am.index + 1; // +1 for 1-based col
+              ranges.push({
+                range: new monaco.Range(li + 1, attrStart, li + 1, attrStart + am[1].length),
+                options: { inlineClassName: 'xml-attr-name' }
+              });
+            }
+          }
+
+          // Depth bookkeeping
+          if (!isClose && !selfClose) depth++;
+        }
+
+        i = j + 1;
+      } else {
+        i++;
+      }
+    }
+  }
+
+  // Replace previous decoration collection
+  let col = _delimDecors.get(editor);
+  if (col) col.clear();
+  col = editor.createDecorationsCollection(ranges);
+  _delimDecors.set(editor, col);
+}
+
+function applyDelimiterColorsDebounced(editor) {
+  const key = '_delimTimer';
+  if (editor[key]) clearTimeout(editor[key]);
+  editor[key] = setTimeout(() => applyDelimiterColors(editor), 300);
+}
+
 
 function clearConsole() {
   document.getElementById('consoleBody').innerHTML = '';
@@ -1044,6 +1224,19 @@ function setStatus(txt, state = 'ok') {
 function clearPane(which) {
   const map = { xml: eds.xml, xslt: eds.xslt, out: eds.out };
   map[which]?.setValue('');
+  // Clear error markers from this pane
+  if (which === 'xml'  && eds.xml)  {
+    monaco.editor.setModelMarkers(eds.xml.getModel(),  'xsltforge', []);
+    if (xmlDecorations)  { xmlDecorations.clear();  xmlDecorations  = null; }
+    setStatus('Ready', 'ok');
+  }
+  if (which === 'xslt' && eds.xslt) {
+    monaco.editor.setModelMarkers(eds.xslt.getModel(), 'xsltforge', []);
+    if (xsltDecorations) { xsltDecorations.clear(); xsltDecorations = null; }
+    setStatus('Ready', 'ok');
+  }
+  // Clear output KV panels when output is cleared
+  if (which === 'out') renderOutputKV({}, {});
 }
 
 function copyOutput() {
@@ -1126,10 +1319,15 @@ function fmtEditor(which) {
   const wasReadOnly = ed.getRawOptions().readOnly;
   if (wasReadOnly) ed.updateOptions({ readOnly: false });
   const formatted = prettyXML(ed.getValue());
+  // Suppress the live-validation debounce — formatting doesn't change validity
+  _suppressNextValidation = true;
   ed.setValue(formatted);
   if (wasReadOnly) ed.updateOptions({ readOnly: true });
   clog(`${which.toUpperCase()} formatted`, 'info');
 }
+
+// Flag read by debounce handlers to skip one validation cycle after Format
+let _suppressNextValidation = false;
 
 // ════════════════════════════════════════════
 //  XSLT VALIDATION & MONACO MARKERS
@@ -1148,7 +1346,9 @@ function clearAllMarkers() {
 }
 
 // Set a red squiggle + glyph on a specific line in an editor
-function markErrorLine(editor, lineNumber, message, decorRef) {
+function markErrorLine(editor, lineNumber, message, oldDecor) {
+  // Always clear the previous decoration collection before creating a new one
+  if (oldDecor) { try { oldDecor.clear(); } catch(e) {} }
   const model = editor.getModel();
   const lineCount = model.getLineCount();
   const line = Math.min(Math.max(lineNumber, 1), lineCount);
@@ -1392,8 +1592,7 @@ async function runTransform() {
 
   // ── Pre-flight validation ──
   setStatus('Validating…', 'busy');
-  const xsltForValidation = eds.xslt?.getValue()?.trim();
-  if (!preflight(xmlSrc, xsltForValidation)) {
+  if (!preflight(xmlSrc, xsltSrc)) {
     resetBtn();
     return;
   }
@@ -2828,9 +3027,17 @@ function handleModalBackdropClick(e) {
   if (e.target === document.getElementById('exModalBackdrop')) closeExModal();
 }
 
-// Close on Escape
+// Close modal on Escape; run transform on Ctrl/Cmd+Enter from anywhere
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeExModal();
+  if (e.key === 'Escape') {
+    closeExModal();
+    return;
+  }
+  // Ctrl+Enter / Cmd+Enter → run transform (works even when KV inputs have focus)
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    runTransform();
+  }
 });
 
 function setExCat(cat) {
@@ -2941,6 +3148,11 @@ function loadExample(key) {
 
   closeExModal();
   clog(`Example loaded: "${ex.label}" — press Run Transform to execute`, 'success');
+  // Re-apply rainbow delimiters for newly loaded content
+  setTimeout(() => {
+    applyDelimiterColors(eds.xml);
+    applyDelimiterColors(eds.xslt);
+  }, 50);
 }
 
 // ════════════════════════════════════════════
@@ -3012,7 +3224,7 @@ function setupDragDrop(editorWrapId, pane) {
 // ════════════════════════════════════════════
 function toggleSideCol(side) {
   const col = document.getElementById(side === 'left' ? 'colLeft' : 'colRight');
-  const isCollapsed = col.classList.toggle('collapsed');
+  col.classList.toggle('collapsed');
 
   // Relayout all Monaco editors after transition
   setTimeout(() => {
@@ -3072,6 +3284,100 @@ function updateConsoleErrBadge() {
 }
 
 // ════════════════════════════════════════════
+//  RAINBOW TOGGLE
+// ════════════════════════════════════════════
+let rainbowEnabled = localStorage.getItem('xforge-rainbow') !== 'off';
+
+function toggleRainbow() {
+  rainbowEnabled = !rainbowEnabled;
+  localStorage.setItem('xforge-rainbow', rainbowEnabled ? 'on' : 'off');
+  document.getElementById('rainbowToggle').classList.toggle('active', rainbowEnabled);
+
+  if (rainbowEnabled) {
+    // Re-apply inline decorations
+    applyDelimiterColors(eds.xml);
+    applyDelimiterColors(eds.xslt);
+    // Re-enable indent guide colors in both themes
+    setRainbowGuides(true);
+  } else {
+    // Clear inline delimiter decorations
+    [eds.xml, eds.xslt].forEach(ed => {
+      const col = _delimDecors.get(ed);
+      if (col) { col.clear(); _delimDecors.delete(ed); }
+    });
+    // Reset indent guides to flat single color
+    setRainbowGuides(false);
+  }
+  clog(`Rainbow colors ${rainbowEnabled ? 'enabled' : 'disabled'}`, 'info');
+}
+
+function setRainbowGuides(on) {
+  // Dynamically update the Monaco theme colors for indent guides
+  const isDark = !document.body.classList.contains('light');
+  const colors = on ? (isDark ? {
+    'editorIndentGuide.background1':       '#1a3a5c',
+    'editorIndentGuide.background2':       '#1a3a2a',
+    'editorIndentGuide.background3':       '#3a2a1a',
+    'editorIndentGuide.background4':       '#2a1a3a',
+    'editorIndentGuide.background5':       '#1a3838',
+    'editorIndentGuide.background6':       '#3a1a28',
+    'editorIndentGuide.activeBackground1': '#2e6db4',
+    'editorIndentGuide.activeBackground2': '#2e8b4a',
+    'editorIndentGuide.activeBackground3': '#b47a2e',
+    'editorIndentGuide.activeBackground4': '#7a2eb4',
+    'editorIndentGuide.activeBackground5': '#2eb4b4',
+    'editorIndentGuide.activeBackground6': '#b42e5a',
+  } : {
+    'editorIndentGuide.background1':       '#c8daf4',
+    'editorIndentGuide.background2':       '#c4e8d0',
+    'editorIndentGuide.background3':       '#f0dfc0',
+    'editorIndentGuide.background4':       '#dcc8f0',
+    'editorIndentGuide.background5':       '#c0e8e8',
+    'editorIndentGuide.background6':       '#f0c8d8',
+    'editorIndentGuide.activeBackground1': '#2e6db4',
+    'editorIndentGuide.activeBackground2': '#1a7f37',
+    'editorIndentGuide.activeBackground3': '#c87800',
+    'editorIndentGuide.activeBackground4': '#6f42c1',
+    'editorIndentGuide.activeBackground5': '#0969a0',
+    'editorIndentGuide.activeBackground6': '#cf222e',
+  }) : (isDark ? {
+    'editorIndentGuide.background1':       '#182030',
+    'editorIndentGuide.background2':       '#182030',
+    'editorIndentGuide.background3':       '#182030',
+    'editorIndentGuide.background4':       '#182030',
+    'editorIndentGuide.background5':       '#182030',
+    'editorIndentGuide.background6':       '#182030',
+    'editorIndentGuide.activeBackground1': '#1e3050',
+    'editorIndentGuide.activeBackground2': '#1e3050',
+    'editorIndentGuide.activeBackground3': '#1e3050',
+    'editorIndentGuide.activeBackground4': '#1e3050',
+    'editorIndentGuide.activeBackground5': '#1e3050',
+    'editorIndentGuide.activeBackground6': '#1e3050',
+  } : {
+    'editorIndentGuide.background1':       '#e8f0f8',
+    'editorIndentGuide.background2':       '#e8f0f8',
+    'editorIndentGuide.background3':       '#e8f0f8',
+    'editorIndentGuide.background4':       '#e8f0f8',
+    'editorIndentGuide.background5':       '#e8f0f8',
+    'editorIndentGuide.background6':       '#e8f0f8',
+    'editorIndentGuide.activeBackground1': '#c0d4e8',
+    'editorIndentGuide.activeBackground2': '#c0d4e8',
+    'editorIndentGuide.activeBackground3': '#c0d4e8',
+    'editorIndentGuide.activeBackground4': '#c0d4e8',
+    'editorIndentGuide.activeBackground5': '#c0d4e8',
+    'editorIndentGuide.activeBackground6': '#c0d4e8',
+  });
+  const themeName = isDark ? 'xforge' : 'xforge-light';
+  monaco.editor.defineTheme(themeName, Object.assign({}, _themeBase[themeName], {
+    colors: Object.assign({}, _themeBase[themeName].colors, colors)
+  }));
+  monaco.editor.setTheme(themeName);
+}
+
+// Store base theme definitions for re-use in setRainbowGuides
+const _themeBase = {};
+
+// ════════════════════════════════════════════
 //  THEME TOGGLE
 // ════════════════════════════════════════════
 function toggleTheme() {
@@ -3085,16 +3391,23 @@ function toggleTheme() {
     monaco.editor.setTheme(monacoTheme);
   }
   clog(`Theme switched to ${isLight ? 'light' : 'dark'} mode`, 'info');
+  // Re-apply rainbow guide state for new theme
+  if (typeof setRainbowGuides === 'function') setRainbowGuides(rainbowEnabled);
 }
 
 // Restore saved theme preference
+// Default is dark; apply light only if explicitly saved as 'light' or no preference yet
 (function() {
-  if (localStorage.getItem('xforge-theme') !== 'dark') {
+  const saved = localStorage.getItem('xforge-theme');
+  if (saved === 'light' || saved === null) {
     document.body.classList.add('light');
     document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('themeToggle');
       if (btn) btn.textContent = '☀️';
     });
+  } else {
+    // Saved as dark — ensure light class is not present (body starts with it in HTML)
+    document.body.classList.remove('light');
   }
 })();
 
@@ -3110,7 +3423,7 @@ document.getElementById('loadTxt').textContent = 'Loading Monaco Editor…';
 require(['vs/editor/editor.main'], () => {
   document.getElementById('loadTxt').textContent = 'Defining theme…';
 
-  monaco.editor.defineTheme('xforge', {
+  const _darkThemeDef = {
     base: 'vs-dark',
     inherit: true,
     rules: [
@@ -3118,13 +3431,11 @@ require(['vs/editor/editor.main'], () => {
       { token: 'delimiter.xml',         foreground: '4a6080' },           // < > / =  — muted steel
       { token: 'metatag.xml',           foreground: 'f472b6' },           // <?xml ?>  — pink
 
-      // Tags — warm coral so they stand out clearly
-      { token: 'tag',                   foreground: '56b6c2', fontStyle: 'bold' }, // element name
+      // Tags & attribute names — base colors (inline decorations override these per-element)
+      { token: 'tag',                   foreground: '56b6c2', fontStyle: 'bold' },
       { token: 'tag.id.pug',            foreground: '56b6c2' },
-
-      // Attribute names — bright sky blue, clearly different from tag
-      { token: 'attribute.name',        foreground: '60c8f0' },
-      { token: 'attribute.name.html',   foreground: '60c8f0' },
+      { token: 'attribute.name',        foreground: 'c084fc' },  // lavender — matches xml-attr-name
+      { token: 'attribute.name.html',   foreground: 'c084fc' },
 
       // Attribute values / strings — soft lime green
       { token: 'attribute.value',       foreground: 'a8e06a' },
@@ -3155,17 +3466,33 @@ require(['vs/editor/editor.main'], () => {
       'editorCursor.foreground':            '#0070f2',
       'editor.selectionBackground':         '#183060',
       'editor.inactiveSelectionBackground': '#10203a',
-      'editorIndentGuide.background1':      '#101828',
-      'editorIndentGuide.activeBackground1':'#1e3050',
+      'editorIndentGuide.background1':      '#1a3a5c',
+      'editorIndentGuide.background2':      '#1a3a2a',
+      'editorIndentGuide.background3':      '#3a2a1a',
+      'editorIndentGuide.background4':      '#2a1a3a',
+      'editorIndentGuide.background5':      '#1a3838',
+      'editorIndentGuide.background6':      '#3a1a28',
+      'editorIndentGuide.activeBackground1':'#2e6db4',
+      'editorIndentGuide.activeBackground2':'#2e8b4a',
+      'editorIndentGuide.activeBackground3':'#b47a2e',
+      'editorIndentGuide.activeBackground4':'#7a2eb4',
+      'editorIndentGuide.activeBackground5':'#2eb4b4',
+      'editorIndentGuide.activeBackground6':'#b42e5a',
+      'editorBracketHighlight.foreground1': '#2e6db4',
+      'editorBracketHighlight.foreground2': '#2e8b4a',
+      'editorBracketHighlight.foreground3': '#b47a2e',
+      'editorBracketHighlight.foreground4': '#7a2eb4',
+      'editorBracketHighlight.foreground5': '#2eb4b4',
+      'editorBracketHighlight.foreground6': '#b42e5a',
       'scrollbarSlider.background':         '#182030aa',
       'scrollbarSlider.hoverBackground':    '#1e3050aa',
       'editorWidget.background':            '#0d1420',
       'input.background':                   '#0a1020',
       'dropdown.background':                '#0d1420',
     }
-  });
+  };
 
-  monaco.editor.defineTheme('xforge-light', {
+  const _lightThemeDef = {
     base: 'vs',
     inherit: true,
     rules: [
@@ -3188,15 +3515,36 @@ require(['vs/editor/editor.main'], () => {
       'editorCursor.foreground':            '#0070f2',
       'editor.selectionBackground':         '#b8d4f8',
       'editor.inactiveSelectionBackground': '#d8e8f8',
-      'editorIndentGuide.background1':      '#e8f0f8',
-      'editorIndentGuide.activeBackground1':'#c0d4e8',
+      'editorIndentGuide.background1':      '#c8daf4',
+      'editorIndentGuide.background2':      '#c4e8d0',
+      'editorIndentGuide.background3':      '#f0dfc0',
+      'editorIndentGuide.background4':      '#dcc8f0',
+      'editorIndentGuide.background5':      '#c0e8e8',
+      'editorIndentGuide.background6':      '#f0c8d8',
+      'editorIndentGuide.activeBackground1':'#2e6db4',
+      'editorIndentGuide.activeBackground2':'#1a7f37',
+      'editorIndentGuide.activeBackground3':'#c87800',
+      'editorIndentGuide.activeBackground4':'#6f42c1',
+      'editorIndentGuide.activeBackground5':'#0969a0',
+      'editorIndentGuide.activeBackground6':'#cf222e',
+      'editorBracketHighlight.foreground1': '#2e6db4',
+      'editorBracketHighlight.foreground2': '#1a7f37',
+      'editorBracketHighlight.foreground3': '#c87800',
+      'editorBracketHighlight.foreground4': '#6f42c1',
+      'editorBracketHighlight.foreground5': '#0969a0',
+      'editorBracketHighlight.foreground6': '#cf222e',
       'scrollbarSlider.background':         '#c0cfe0aa',
       'scrollbarSlider.hoverBackground':    '#a8bcd4aa',
       'editorWidget.background':            '#f0f4f8',
       'input.background':                   '#ffffff',
       'dropdown.background':                '#f0f4f8',
     }
-  });
+  };
+
+  _themeBase['xforge']       = _darkThemeDef;
+  _themeBase['xforge-light'] = _lightThemeDef;
+  monaco.editor.defineTheme('xforge',       _darkThemeDef);
+  monaco.editor.defineTheme('xforge-light', _lightThemeDef);
 
   // Apply saved theme to Monaco if light was restored from localStorage
   if (document.body.classList.contains('light')) {
@@ -3210,7 +3558,7 @@ require(['vs/editor/editor.main'], () => {
   });
 
   const shared = {
-    theme: 'xforge-light',
+    theme: document.body.classList.contains('light') ? 'xforge-light' : 'xforge',
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
     fontSize: 13,
     lineHeight: 22,
@@ -3223,7 +3571,8 @@ require(['vs/editor/editor.main'], () => {
     smoothScrolling: true,
     cursorBlinking: 'smooth',
     cursorSmoothCaretAnimation: 'on',
-    bracketPairColorization: { enabled: true },
+    bracketPairColorization: { enabled: true, independentColorPoolPerBracketType: true },
+    guides: { bracketPairs: 'active', indentation: true, highlightActiveIndentation: true },
     padding: { top: 10, bottom: 10 },
     wordWrap: 'off',
     suggest: { showWords: false },
@@ -3256,6 +3605,10 @@ require(['vs/editor/editor.main'], () => {
   // Set up drag & drop for XML and XSLT panes
   setupDragDrop('xmlEdWrap', 'xml');
   setupDragDrop('xsltEdWrap', 'xslt');
+
+  // Initial rainbow delimiter coloring
+  applyDelimiterColors(eds.xml);
+  applyDelimiterColors(eds.xslt);
 
   // ── Auto-close XML tags for xml language mode ──
   // Combined auto-close handler: XML tags + bracket/quote pairs
@@ -3347,8 +3700,11 @@ require(['vs/editor/editor.main'], () => {
         const charBefore = lineText[pos.column - 2]; // char just before cursor
         const charAfter  = lineText[pos.column - 1]; // char just after cursor
 
-        // Only trigger inside a tag: prev char is word char, next char is not already "
-        if (/\w/.test(charBefore) && charAfter !== '"') {
+        // Only trigger inside a tag opener: prev char is word char, next is not already "
+        // and there must be an unclosed '<' before the cursor on this line
+        const lineUpToCursor = lineText.substring(0, pos.column - 1);
+        const inTag = (lineUpToCursor.lastIndexOf('<') > lineUpToCursor.lastIndexOf('>'));
+        if (/\w/.test(charBefore) && charAfter !== '"' && inTag) {
           e.preventDefault();
           _inserting = true;
           editor.executeEdits('attr-equals', [{
@@ -3433,6 +3789,8 @@ require(['vs/editor/editor.main'], () => {
   }
 
   eds.xslt.onDidChangeModelContent(() => {
+    applyDelimiterColorsDebounced(eds.xslt);
+    if (_suppressNextValidation) { _suppressNextValidation = false; return; }
     // Clear immediately so stale markers don't linger while user types
     monaco.editor.setModelMarkers(eds.xslt.getModel(), 'xsltforge', []);
     if (xsltDecorations) { xsltDecorations.clear(); xsltDecorations = null; }
@@ -3441,6 +3799,8 @@ require(['vs/editor/editor.main'], () => {
   });
 
   eds.xml.onDidChangeModelContent(() => {
+    applyDelimiterColorsDebounced(eds.xml);
+    if (_suppressNextValidation) { _suppressNextValidation = false; return; }
     monaco.editor.setModelMarkers(eds.xml.getModel(), 'xsltforge', []);
     if (xmlDecorations) { xmlDecorations.clear(); xmlDecorations = null; }
     clearTimeout(xmlDebounce);
@@ -3462,6 +3822,9 @@ require(['vs/editor/editor.main'], () => {
       renderKV('properties');
       renderOutputKV({}, {});
       setStatus('Ready', 'ok');
+      // Restore rainbow preference
+      document.getElementById('rainbowToggle').classList.toggle('active', rainbowEnabled);
+      if (!rainbowEnabled) setRainbowGuides(false);
     }
   }, 200);
 
