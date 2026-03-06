@@ -60,15 +60,15 @@ function applyShareData(data) {
 
   if (data.xml  !== undefined) { _suppressNextSave = true; _suppressNextValidation = true; eds.xml?.setValue(data.xml); }
   if (data.xslt !== undefined) { _suppressNextSave = true; _suppressNextValidation = true; eds.xslt?.setValue(data.xslt); }
+  // Reset suppress flags — if shared value matched the current editor value Monaco fires
+  // no change event, leaving these stuck true and silently breaking the first user keystroke.
+  _suppressNextSave = false;
+  _suppressNextValidation = false;
 
   kvData  = { headers: [], properties: [] };
   kvIdSeq = 0;
   (data.headers    || []).forEach(r => { kvIdSeq++; kvData.headers.push(   { id: kvIdSeq, name: r.name, value: r.value }); });
   (data.properties || []).forEach(r => { kvIdSeq++; kvData.properties.push({ id: kvIdSeq, name: r.name, value: r.value }); });
-
-  eds.out?.updateOptions({ readOnly: false });
-  eds.out?.setValue('');
-  eds.out?.updateOptions({ readOnly: true });
 
   clog('Shared session loaded', 'success');
 }

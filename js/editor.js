@@ -414,7 +414,6 @@ require(['vs/editor/editor.main'], () => {
       // ── Share link takes priority over saved session ──
       if (window._pendingShareData) {
         applyShareData(window._pendingShareData);
-        window._pendingShareData = null;
       } else if (_savedSession) {
         // Restore KV rows
         if (Array.isArray(_savedSession.headers)) {
