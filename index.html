@@ -222,35 +222,11 @@
     </div>
 
     <div class="share-modal-body">
-      <div class="share-section-label">Include in share link</div>
-      <div class="share-checks">
-        <label class="share-check-item">
-          <input type="checkbox" id="shareChk-xml" checked onchange="onShareCheckboxChange('xml', this.checked)">
-          <span class="share-check-dot ind-xml"></span>
-          <span class="share-check-label">XML Input</span>
-        </label>
-        <label class="share-check-item">
-          <input type="checkbox" id="shareChk-xslt" checked onchange="onShareCheckboxChange('xslt', this.checked)">
-          <span class="share-check-dot ind-xslt"></span>
-          <span class="share-check-label">XSLT Stylesheet</span>
-        </label>
-        <label class="share-check-item">
-          <input type="checkbox" id="shareChk-headers" checked onchange="onShareCheckboxChange('headers', this.checked)">
-          <span class="share-check-dot" style="background:#c084fc;box-shadow:0 0 8px rgba(192,132,252,0.4)"></span>
-          <span class="share-check-label">Headers</span>
-        </label>
-        <label class="share-check-item">
-          <input type="checkbox" id="shareChk-properties" checked onchange="onShareCheckboxChange('properties', this.checked)">
-          <span class="share-check-dot" style="background:#f5a524;box-shadow:0 0 8px rgba(245,165,36,0.4)"></span>
-          <span class="share-check-label">Properties</span>
-        </label>
-      </div>
-
       <div class="share-url-row">
         <input class="share-url-input" id="shareUrlInput" readonly onclick="this.select()">
         <button class="share-copy-btn" id="shareCopyBtn" onclick="_copyShareUrl(false)">Copy URL</button>
       </div>
-      <div class="share-hint">URL auto-copied to clipboard · recipient opens the link to restore this session</div>
+      <div class="share-hint">Includes XML, XSLT, headers and properties · recipient opens the link to restore this session</div>
     </div>
   </div>
 </div>

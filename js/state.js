@@ -61,7 +61,11 @@ const STORAGE_KEY = 'xdebugx-session-v1';
 let _saveTimer = null;
 
 // Debounced save — coalesces rapid keystrokes into one write
+// Set _suppressNextSave = true before a programmatic setValue to skip that one save.
+let _suppressNextSave = false;
+
 function scheduleSave() {
+  if (_suppressNextSave) { _suppressNextSave = false; return; }
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(saveState, 800);
 }

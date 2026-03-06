@@ -786,37 +786,7 @@
       padding: 20px 20px 22px;
       display: flex; flex-direction: column; gap: 14px;
     }
-    .share-section-label {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 9px; font-weight: 700;
-      letter-spacing: 1.4px; text-transform: uppercase;
-      color: var(--text-dim);
-    }
-    .share-checks {
-      display: flex; flex-wrap: wrap; gap: 8px;
-    }
-    .share-check-item {
-      display: flex; align-items: center; gap: 7px;
-      padding: 6px 12px;
-      background: var(--bg-base);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      cursor: pointer;
-      transition: all 0.15s;
-      user-select: none;
-    }
-    .share-check-item:hover { border-color: var(--border-bright); background: var(--bg-header); }
-    .share-check-item input[type="checkbox"] { display: none; }
-    .share-check-item:has(input:not(:checked)) { opacity: 0.45; }
-    .share-check-dot {
-      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-    }
-    .share-check-label {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px; font-weight: 600;
-      color: var(--text-primary);
-      white-space: nowrap;
-    }
+
     .share-url-row {
       display: flex; gap: 8px;
     }

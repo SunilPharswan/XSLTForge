@@ -4,25 +4,29 @@
 
 // ── Encode ──────────────────────────────────
 
-function buildSharePayload(options) {
-  const data = {};
-  if (options.xml)        data.xml        = eds.xml?.getValue()  ?? '';
-  if (options.xslt)       data.xslt       = eds.xslt?.getValue() ?? '';
-  if (options.headers)    data.headers    = kvData.headers.map(r => ({ name: r.name, value: r.value }));
-  if (options.properties) data.properties = kvData.properties.map(r => ({ name: r.name, value: r.value }));
-  return data;
+function buildSharePayload() {
+  return {
+    xml:        eds.xml?.getValue()  ?? '',
+    xslt:       eds.xslt?.getValue() ?? '',
+    headers:    kvData.headers.map(r    => ({ name: r.name, value: r.value })),
+    properties: kvData.properties.map(r => ({ name: r.name, value: r.value })),
+  };
 }
 
 function encodeShareData(data) {
   const bytes      = new TextEncoder().encode(JSON.stringify(data));
   const compressed = pako.deflateRaw(bytes, { level: 9 });
-  let   binary     = '';
-  compressed.forEach(b => binary += String.fromCharCode(b));
+  // Chunked to avoid O(n²) string concat and call-stack limits on large payloads
+  const CHUNK = 8192;
+  let binary = '';
+  for (let i = 0; i < compressed.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, compressed.subarray(i, i + CHUNK));
+  }
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function generateShareUrl(options) {
-  return location.href.split('#')[0] + '#share/' + encodeShareData(buildSharePayload(options));
+function generateShareUrl() {
+  return location.href.split('#')[0] + '#share/' + encodeShareData(buildSharePayload());
 }
 
 // ── Decode (called on page load) ─────────────
@@ -31,8 +35,7 @@ function loadFromShareHash() {
   if (!location.hash.startsWith('#share/')) return false;
   try {
     const raw    = location.hash.slice(7).replace(/-/g, '+').replace(/_/g, '/');
-    // Re-add stripped padding so atob works in all browsers
-    const b64    = raw + '==='.slice(raw.length % 4 === 0 ? 3 : 4 - raw.length % 4);
+    const b64    = raw.padEnd(Math.ceil(raw.length / 4) * 4, '=');
     const binary = atob(b64);
     const bytes  = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -46,7 +49,8 @@ function loadFromShareHash() {
   }
 }
 
-// Called from editor.js after Monaco + Saxon are ready
+// ── Apply (called from editor.js after Monaco + Saxon are ready) ─────────────
+
 function applyShareData(data) {
   if (!data) return;
 
@@ -54,13 +58,11 @@ function applyShareData(data) {
   clearTimeout(xmlDebounce);
   clearAllMarkers();
 
-  // Set suppress before EACH setValue — the change handler flips it to false on first fire
-  if (data.xml  !== undefined) { _suppressNextValidation = true; eds.xml?.setValue(data.xml); }
-  if (data.xslt !== undefined) { _suppressNextValidation = true; eds.xslt?.setValue(data.xslt); }
+  if (data.xml  !== undefined) { _suppressNextSave = true; _suppressNextValidation = true; eds.xml?.setValue(data.xml); }
+  if (data.xslt !== undefined) { _suppressNextSave = true; _suppressNextValidation = true; eds.xslt?.setValue(data.xslt); }
 
   kvData  = { headers: [], properties: [] };
   kvIdSeq = 0;
-
   (data.headers    || []).forEach(r => { kvIdSeq++; kvData.headers.push(   { id: kvIdSeq, name: r.name, value: r.value }); });
   (data.properties || []).forEach(r => { kvIdSeq++; kvData.properties.push({ id: kvIdSeq, name: r.name, value: r.value }); });
 
@@ -73,18 +75,16 @@ function applyShareData(data) {
 
 // ── Modal ────────────────────────────────────
 
-let _shareOptions = { xml: true, xslt: true, headers: true, properties: true };
-
 function openShareModal() {
   document.getElementById('shareModalBackdrop').classList.add('open');
-  _shareOptions = { xml: true, xslt: true, headers: true, properties: true };
-
-  ['xml','xslt','headers','properties'].forEach(k => {
-    const cb = document.getElementById('shareChk-' + k);
-    if (cb) cb.checked = _shareOptions[k];
-  });
-
-  _refreshShareUrl(true);
+  try {
+    const url   = generateShareUrl();
+    const input = document.getElementById('shareUrlInput');
+    if (input) input.value = url;
+    _copyShareUrl(true);
+  } catch (e) {
+    clog('Failed to generate share URL: ' + e.message, 'error');
+  }
 }
 
 function closeShareModal() {
@@ -93,24 +93,6 @@ function closeShareModal() {
 
 function handleShareBackdropClick(e) {
   if (e.target === document.getElementById('shareModalBackdrop')) closeShareModal();
-}
-
-function onShareCheckboxChange(key, checked) {
-  _shareOptions[key] = checked;
-  const anyOn = Object.values(_shareOptions).some(Boolean);
-  document.getElementById('shareCopyBtn').disabled = !anyOn;
-  if (anyOn) _refreshShareUrl(false);
-}
-
-function _refreshShareUrl(autoCopy) {
-  try {
-    const url   = generateShareUrl(_shareOptions);
-    const input = document.getElementById('shareUrlInput');
-    if (input) input.value = url;
-    if (autoCopy) _copyShareUrl(true);
-  } catch (e) {
-    clog('Failed to generate share URL: ' + e.message, 'error');
-  }
 }
 
 function _copyShareUrl(silent) {
@@ -129,18 +111,16 @@ function _copyShareUrl(silent) {
   };
 
   var onFail = function() {
-    // Fallback: select the text so the user can Ctrl+C manually
     input.select();
     var ok = false;
     try { ok = document.execCommand('copy'); } catch(_) {}
     if (ok) {
       onSuccess();
     } else {
-      clog('Auto-copy unavailable - URL selected, press Ctrl+C to copy', 'warn');
+      clog('Auto-copy unavailable — URL selected, press Ctrl+C to copy', 'warn');
     }
   };
 
-  // navigator.clipboard may be undefined on file:// or non-HTTPS - guard synchronously
   if (window.navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
     navigator.clipboard.writeText(url).then(onSuccess, onFail);
   } else {
