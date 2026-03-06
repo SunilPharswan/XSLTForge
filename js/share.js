@@ -70,7 +70,15 @@ function applyShareData(data) {
   (data.headers    || []).forEach(r => { kvIdSeq++; kvData.headers.push(   { id: kvIdSeq, name: r.name, value: r.value }); });
   (data.properties || []).forEach(r => { kvIdSeq++; kvData.properties.push({ id: kvIdSeq, name: r.name, value: r.value }); });
 
-  clog('Shared session loaded', 'success');
+  const _shdr  = (data.headers    || []).filter(r => r.name).length;
+  const _sprop = (data.properties || []).filter(r => r.name).length;
+  const _parts = [
+    `xml ${(data.xml  || '').length} chars`,
+    `xslt ${(data.xslt || '').length} chars`,
+  ];
+  if (_shdr)  _parts.push(`${_shdr} header${_shdr  > 1 ? 's' : ''}`);
+  if (_sprop) _parts.push(`${_sprop} propert${_sprop > 1 ? 'ies' : 'y'}`);
+  clog(`Shared session loaded — ${_parts.join(' · ')} ✓`, 'success');
 }
 
 // ── Modal ────────────────────────────────────
@@ -81,7 +89,7 @@ function openShareModal() {
     const url   = generateShareUrl();
     const input = document.getElementById('shareUrlInput');
     if (input) input.value = url;
-    _copyShareUrl(true);
+    _copyShareUrl(url, true);
   } catch (e) {
     clog('Failed to generate share URL: ' + e.message, 'error');
   }
@@ -95,30 +103,26 @@ function handleShareBackdropClick(e) {
   if (e.target === document.getElementById('shareModalBackdrop')) closeShareModal();
 }
 
-function _copyShareUrl(silent) {
-  const input = document.getElementById('shareUrlInput');
-  const url   = input ? input.value : '';
+function _copyShareUrl(url, silent) {
   if (!url) return;
 
-  var onSuccess = function() {
+  const onSuccess = () => {
     if (!silent) {
-      var btn  = document.getElementById('shareCopyBtn');
-      var orig = btn.textContent;
+      const btn  = document.getElementById('shareCopyBtn');
+      const orig = btn.textContent;
       btn.textContent = 'Copied!';
-      setTimeout(function() { btn.textContent = orig; }, 1400);
+      setTimeout(() => { btn.textContent = orig; }, 1400);
     }
     clog('Share URL copied to clipboard', 'success');
   };
 
-  var onFail = function() {
-    input.select();
-    var ok = false;
+  const onFail = () => {
+    // execCommand fallback for file:// or non-HTTPS
+    const input = document.getElementById('shareUrlInput');
+    if (input) input.select();
+    let ok = false;
     try { ok = document.execCommand('copy'); } catch(_) {}
-    if (ok) {
-      onSuccess();
-    } else {
-      clog('Auto-copy unavailable — URL selected, press Ctrl+C to copy', 'warn');
-    }
+    ok ? onSuccess() : clog('Auto-copy unavailable — URL selected, press Ctrl+C to copy', 'warn');
   };
 
   if (window.navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {

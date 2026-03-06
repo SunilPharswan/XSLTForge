@@ -347,11 +347,9 @@ require(['vs/editor/editor.main'], () => {
     const src = eds.xslt.getValue().trim();
     if (!src) { clearAllMarkers(); return; }
     // Only validate the XSLT itself for well-formedness here
-    monaco.editor.setModelMarkers(eds.xslt.getModel(), 'xsltforge', []);
-    if (xsltDecorations) { xsltDecorations.clear(); xsltDecorations = null; }
     const result = validateXML(src);
     if (!result.ok) {
-      xsltDecorations = markErrorLine(eds.xslt, result.line, result.message);
+      xsltDecorations = markErrorLine(eds.xslt, result.line, result.message, xsltDecorations);
       setStatus(`XSLT error at line ${result.line}`, 'err');
     } else {
       // Only reset status if we're not mid-transform
@@ -369,11 +367,9 @@ require(['vs/editor/editor.main'], () => {
       if (current.startsWith('XML error')) setStatus('Ready', 'ok');
       return;
     }
-    monaco.editor.setModelMarkers(eds.xml.getModel(), 'xsltforge', []);
-    if (xmlDecorations) { xmlDecorations.clear(); xmlDecorations = null; }
     const result = validateXML(src);
     if (!result.ok) {
-      xmlDecorations = markErrorLine(eds.xml, result.line, result.message);
+      xmlDecorations = markErrorLine(eds.xml, result.line, result.message, xmlDecorations);
       setStatus(`XML error at line ${result.line}`, 'err');
     } else {
       const current = document.getElementById('statTxt').textContent;

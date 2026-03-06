@@ -19,7 +19,7 @@ function handleUpload(event, pane) {
     scheduleSave();
     clog(`Uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB) → ${pane.toUpperCase()} pane`, 'success');
   };
-  reader.onerror = () => clog(`Failed to read file: ${file.name}`, 'error');
+  reader.onerror = e => clog(`Failed to read file: ${file.name} (${e.target.error?.name ?? 'unknown error'})`, 'error');
   reader.readAsText(file);
 }
 
@@ -60,6 +60,7 @@ function setupDragDrop(editorWrapId, pane) {
       scheduleSave();
       clog(`Dropped: ${file.name} (${(file.size / 1024).toFixed(1)} KB) → ${pane.toUpperCase()} pane`, 'success');
     };
+    reader.onerror = e => clog(`Failed to read dropped file: ${file.name} (${e.target.error?.name ?? 'unknown error'})`, 'error');
     reader.readAsText(file);
   });
 }

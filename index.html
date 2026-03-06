@@ -224,7 +224,7 @@
     <div class="share-modal-body">
       <div class="share-url-row">
         <input class="share-url-input" id="shareUrlInput" readonly onclick="this.select()">
-        <button class="share-copy-btn" id="shareCopyBtn" onclick="_copyShareUrl(false)">Copy URL</button>
+        <button class="share-copy-btn" id="shareCopyBtn" onclick="_copyShareUrl(document.getElementById('shareUrlInput').value, false)">Copy URL</button>
       </div>
       <div class="share-hint">Includes XML, XSLT, headers and properties · recipient opens the link to restore this session</div>
     </div>

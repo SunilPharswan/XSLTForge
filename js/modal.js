@@ -118,9 +118,13 @@ function loadExample(key) {
   clearAllMarkers();
 
   eds.xml?.setValue(ex.xml);
-  // _suppressNextValidation consumed by xml change — reset for xslt
+  // _suppressNextValidation consumed by xml change — reset for xslt.
+  // Always reset after both setValue calls: if the new value matches the current
+  // editor value Monaco fires no change event, leaving the flag stuck true and
+  // silently breaking the first real keystroke's validation.
   _suppressNextValidation = true;
   eds.xslt?.setValue(ex.xslt);
+  _suppressNextValidation = false;
   eds.out?.updateOptions({ readOnly: false });
   eds.out?.setValue('');
   eds.out?.updateOptions({ readOnly: true });

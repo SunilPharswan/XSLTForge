@@ -1326,6 +1326,90 @@ const EXAMPLES = {
   </xsl:template>
 
 </xsl:stylesheet>`
+  },
+
+  xslMessageDebug: {
+    label: 'xsl:message Debugging',
+    icon: '🐛',
+    desc: 'Use xsl:message as console.log — trace variables, loop counts and branch decisions',
+    cat:  'cpi',
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<Orders>
+  <Order id="ORD-001">
+    <Customer>ACME Corp</Customer>
+    <Total currency="USD">1250.00</Total>
+    <Status>APPROVED</Status>
+  </Order>
+  <Order id="ORD-002">
+    <Customer>Globex</Customer>
+    <Total currency="EUR">340.00</Total>
+    <Status>PENDING</Status>
+  </Order>
+  <Order id="ORD-003">
+    <Customer>Initech</Customer>
+    <Total currency="USD">89.50</Total>
+    <Status>REJECTED</Status>
+  </Order>
+</Orders>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0"
+  xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+
+  <!--
+    xsl:message Debugging — the XSLT equivalent of console.log.
+
+    In SAP CPI there is no debugger and no variable inspector.
+    xsl:message is your only way to trace what is happening at
+    runtime. Messages appear in the CPI message monitor log,
+    and here in XSLTDebugX they show up in the console panel
+    as "xsl:message → ..." lines so you can inspect values
+    without needing to deploy.
+
+    Techniques demonstrated:
+      1. Trace a variable value
+      2. Log loop position and item count
+      3. Log which branch of a choose was taken
+      4. Trace a concat expression inline
+      5. terminate="yes" to hard-stop on an unexpected condition
+  -->
+
+  <xsl:template match="/Orders">
+
+    <!-- Technique 1: trace a document-level variable -->
+    <xsl:variable name="orderCount" select="count(Order)"/>
+    <xsl:message select="concat('DEBUG orderCount = ', $orderCount)"/>
+
+    <ProcessedOrders>
+      <xsl:apply-templates select="Order"/>
+    </ProcessedOrders>
+  </xsl:template>
+
+  <xsl:template match="Order">
+
+    <!-- Technique 2: trace loop position -->
+    <xsl:message select="concat('DEBUG processing Order ', position(), ' of ', last(), ' — id=', @id)"/>
+
+    <!-- Technique 3: trace which branch is taken -->
+    <xsl:variable name="status" select="normalize-space(Status)"/>
+    <xsl:choose>
+      <xsl:when test="$status = 'APPROVED'">
+        <xsl:message select="concat('DEBUG APPROVED branch — id=', @id)"/>
+        <Order id="{@id}" action="SEND"/>
+      </xsl:when>
+      <xsl:when test="$status = 'PENDING'">
+        <xsl:message select="concat('DEBUG PENDING branch — id=', @id, ' skipping')"/>
+        <!-- intentionally omitted from output -->
+      </xsl:when>
+      <xsl:otherwise>
+        <!-- Technique 5: hard-stop on truly unexpected status values -->
+        <!-- Comment out terminate="yes" to continue past errors instead -->
+        <xsl:message select="concat('WARN unknown status [', $status, '] for id=', @id)"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+</xsl:stylesheet>`
   }
 
 };

@@ -29,10 +29,27 @@ function clearPane(which) {
 function copyPane(which) {
   const ed = which === 'xml' ? eds.xml : which === 'xslt' ? eds.xslt : eds.out;
   const v  = ed?.getValue() ?? '';
-  if (!v.trim()) return clog('Nothing to copy', 'warn');
-  navigator.clipboard.writeText(v)
-    .then(() => clog(`${which.toUpperCase()} copied to clipboard ✓`, 'success'))
-    .catch(() => clog('Clipboard access denied', 'error'));
+  const label = which.toUpperCase();
+  if (!v.trim()) return clog(`${label} pane is empty — nothing to copy`, 'warn');
+
+  const onSuccess = () => clog(`${label} copied to clipboard ✓`, 'success');
+  const onFail    = () => {
+    const ta = document.createElement('textarea');
+    ta.value = v;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = (() => { try { return document.execCommand('copy'); } catch(_) { return false; } })();
+    document.body.removeChild(ta);
+    ok ? onSuccess() : clog('Clipboard access denied', 'error');
+  };
+
+  if (window.navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(v).then(onSuccess, onFail);
+  } else {
+    onFail();
+  }
 }
 
 function prettyXML(xml) {

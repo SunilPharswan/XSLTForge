@@ -102,9 +102,10 @@ function loadSavedState() {
 function clearSavedState() {
   localStorage.removeItem(STORAGE_KEY);
 
-  // Reset editors to default example
-  if (eds.xml)  eds.xml.setValue(EXAMPLES.identityTransform.xml);
-  if (eds.xslt) eds.xslt.setValue(EXAMPLES.identityTransform.xslt);
+  // Reset editors to default example — suppress save so the cleared state isn't immediately re-written
+  if (eds.xml)  { _suppressNextSave = true; eds.xml.setValue(EXAMPLES.identityTransform.xml); }
+  if (eds.xslt) { _suppressNextSave = true; eds.xslt.setValue(EXAMPLES.identityTransform.xslt); }
+  _suppressNextSave = false;
   if (eds.out)  { eds.out.updateOptions({ readOnly: false }); eds.out.setValue(''); eds.out.updateOptions({ readOnly: true }); }
 
   // Reset KV panels

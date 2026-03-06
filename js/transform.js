@@ -58,11 +58,9 @@ function buildParamsXPath() {
   });
   if (skipped.length) {
     // Warn — but don't block the transform
-    setTimeout(() => {
-      skipped.forEach(n =>
-        clog(`Warning: header/property "${n}" skipped — not a valid xsl:param name (must start with a letter or underscore)`, 'warn')
-      );
-    }, 0);
+    skipped.forEach(n =>
+      clog(`Warning: header/property "${n}" skipped — not a valid xsl:param name (must start with a letter or underscore)`, 'warn')
+    );
   }
   return `, 'stylesheet-params': map { ${entries.join(', ')} }`;
 }
@@ -134,8 +132,12 @@ function renderKV(type) {
 // ════════════════════════════════════════════
 //  TRANSFORM
 // ════════════════════════════════════════════
-async function runTransform() {
+function runTransform() {
   if (!saxonReady) { clog('Saxon-JS not ready yet', 'error'); return; }
+
+  // Reset error badge for fresh run
+  consoleErrCount = 0;
+  updateConsoleErrBadge();
 
   const btn = document.getElementById('runBtn');
   function resetBtn() {
@@ -160,15 +162,21 @@ async function runTransform() {
     return;
   }
 
-  clog('Starting XSLT transform…', 'info');
   const t0 = performance.now();
+  clog(`Starting XSLT transform — XML ${xmlSrc.length} chars · XSLT ${xsltSrc.length} chars`, 'info');
 
   // Extract cpi: calls BEFORE stripping so we can show them in output panels
   const hasCPI   = /cpi:set(?:Header|Property)/.test(xsltSrc);
   const cpiCalls = hasCPI ? extractCPICalls(xsltSrc) : { headers: {}, properties: {} };
   if (hasCPI) {
     xsltSrc = stripCPICalls(xsltSrc);
-    clog('CPI extension calls detected — simulating setHeader / setProperty', 'info');
+    const _hc = Object.keys(cpiCalls.headers).length;
+    const _pc = Object.keys(cpiCalls.properties).length;
+    const _parts = ['CPI extension calls detected'];
+    if (_hc) _parts.push(`${_hc} header${_hc > 1 ? 's' : ''}`);
+    if (_pc) _parts.push(`${_pc} propert${_pc > 1 ? 'ies' : 'y'}`);
+    if (!_hc && !_pc) _parts.push('dynamic values only — output panels will show — none —');
+    clog(_parts.join(' — '), 'info');
   }
 
   // Log which params are being passed
@@ -178,6 +186,20 @@ async function runTransform() {
   }
 
   const paramsXPath = buildParamsXPath();
+
+  // ── Intercept xsl:message output ──────────────────────────────────────────
+  // Saxon-JS routes xsl:message to console.log("xsl:message: <text>").
+  // Temporarily patch console.log to capture those and route them to clog.
+  const _xslMessages  = [];
+  const _origConsoleLog = console.log;
+  console.log = function(...args) {
+    const first = args[0];
+    if (typeof first === 'string' && first.startsWith('xsl:message: ')) {
+      _xslMessages.push(first.slice(13));
+    } else {
+      _origConsoleLog.apply(console, args);
+    }
+  };
 
   try {
     const output = SaxonJS.XPath.evaluate(
@@ -193,6 +215,9 @@ async function runTransform() {
 
     const elapsed = (performance.now() - t0).toFixed(1);
 
+    // Flush xsl:message lines before completion log — fires in natural execution order
+    _xslMessages.forEach(m => clog(`xsl:message → ${m}`, 'warn'));
+
     eds.out.updateOptions({ readOnly: false });
     eds.out.setValue(output.trimStart().startsWith('<') ? prettyXML(output) : output);
     eds.out.updateOptions({ readOnly: true });
@@ -205,12 +230,6 @@ async function runTransform() {
     kvData.properties.filter(r => r.name.trim() && !(r.name in outProps))
                      .forEach(r => { outProps[r.name] = r.value; });
     renderOutputKV(outHdrs, outProps);
-
-    if (hasCPI) {
-      const hc = Object.keys(cpiCalls.headers).length;
-      const pc = Object.keys(cpiCalls.properties).length;
-      clog(`CPI: ${hc} header(s) set, ${pc} propert${pc === 1 ? 'y' : 'ies'} set ✓`, 'success');
-    }
 
     clog(`Transform complete in ${elapsed} ms ✓`, 'success');
     document.getElementById('statTime').textContent = `${elapsed} ms`;
@@ -229,20 +248,33 @@ async function runTransform() {
     }
 
   } catch (err) {
+    // Flush xsl:message lines before error — trace should precede the failure it caused
+    _xslMessages.forEach(m => clog(`xsl:message → ${m}`, 'warn'));
+
     const fullMsg = err.message || String(err);
     const msg = fullMsg.split('\n')[0];
-    clog(`Error: ${msg}`, 'error');
 
-    // Try to highlight the offending line in the XSLT editor
-    const errLine = parseSaxonErrorLine(fullMsg);
-    if (errLine) {
-      // Saxon reports lines relative to the (possibly stripped) XSLT —
-      // mark the line in the original editor
-      xsltDecorations = markErrorLine(eds.xslt, errLine, msg, xsltDecorations);
-      clog(`↳ Error at line ${errLine} (highlighted in XSLT editor)`, 'error');
+    // Detect terminate="yes" — Saxon throws "Terminated with <message text>"
+    // Log it as a warn (not error) since it's an intentional halt, not a bug.
+    // Error-highlight block is skipped — there's no broken line to mark.
+    const terminateMatch = msg.match(/^Terminated with (.+)$/i);
+    if (terminateMatch) {
+      clog(`xsl:message terminate="yes" — ${terminateMatch[1]}`, 'warn');
+    } else {
+      clog(`Error: ${msg}`, 'error');
+      // Try to highlight the offending line in the XSLT editor
+      const errLine = parseSaxonErrorLine(fullMsg);
+      if (errLine) {
+        xsltDecorations = markErrorLine(eds.xslt, errLine, msg, xsltDecorations);
+        clog(`↳ Error at line ${errLine} (highlighted in XSLT editor)`, 'error');
+      }
     }
 
     setStatus('Transform failed', 'err');
+  } finally {
+    // Always restore console.log — even if Saxon throws
+    // Messages already flushed above in try/catch at the right point in the log order
+    console.log = _origConsoleLog;
   }
 
   resetBtn();

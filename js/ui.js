@@ -61,9 +61,26 @@ function copyConsole() {
     return `${ts}  ${msg}`;
   }).join('\n');
   if (!text.trim()) return clog('Console is empty — nothing to copy', 'warn');
-  navigator.clipboard.writeText(text)
-    .then(() => clog('Console copied to clipboard ✓', 'success'))
-    .catch(() => clog('Clipboard access denied', 'error'));
+
+  const onSuccess = () => clog('Console copied to clipboard ✓', 'success');
+  const onFail    = () => {
+    // execCommand fallback for file:// or non-HTTPS contexts
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = (() => { try { return document.execCommand('copy'); } catch(_) { return false; } })();
+    document.body.removeChild(ta);
+    ok ? onSuccess() : clog('Clipboard access denied', 'error');
+  };
+
+  if (window.navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(text).then(onSuccess, onFail);
+  } else {
+    onFail();
+  }
 }
 
 // ════════════════════════════════════════════
@@ -79,7 +96,7 @@ function toggleTheme() {
   if (typeof monaco !== 'undefined') {
     monaco.editor.setTheme(monacoTheme);
   }
-  clog(`Theme switched to ${isLight ? 'light' : 'dark'} mode`, 'info');
+  // theme switch is self-evident — no console log needed
 }
 
 // Restore saved theme preference
