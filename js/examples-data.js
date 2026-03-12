@@ -1411,5 +1411,464 @@ const EXAMPLES = {
 
 </xsl:stylesheet>`
   }
+,
+
+  // ── XPATH EXAMPLES ───────────────────────────────────────────────
+
+  xpathNavigation: {
+    label: 'Navigation & Predicates',
+    icon:  '🧭',
+    desc:  'Select elements by name, attribute value, position and multi-condition predicates',
+    cat:   'xpath',
+    xpathExpr: "//Item[@status='active']",
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<SalesOrder>
+  <Header>
+    <OrderId>SO-2024-001</OrderId>
+    <Customer>ACME Corp</Customer>
+    <OrderDate>2024-03-15</OrderDate>
+    <Currency>USD</Currency>
+    <Status>OPEN</Status>
+  </Header>
+  <Items>
+    <Item status="active">
+      <LineNo>10</LineNo>
+      <Material>MAT-001</Material>
+      <Qty>5</Qty>
+      <UnitPrice>120.00</UnitPrice>
+      <Category>Pumps</Category>
+    </Item>
+    <Item status="cancelled">
+      <LineNo>20</LineNo>
+      <Material>MAT-002</Material>
+      <Qty>3</Qty>
+      <UnitPrice>85.50</UnitPrice>
+      <Category>Valves</Category>
+    </Item>
+    <Item status="active">
+      <LineNo>30</LineNo>
+      <Material>MAT-003</Material>
+      <Qty>10</Qty>
+      <UnitPrice>45.00</UnitPrice>
+      <Category>Pumps</Category>
+    </Item>
+    <Item status="active">
+      <LineNo>40</LineNo>
+      <Material>MAT-004</Material>
+      <Qty>2</Qty>
+      <UnitPrice>380.00</UnitPrice>
+      <Category>Valves</Category>
+    </Item>
+  </Items>
+</SalesOrder>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>`,
+    xpathHints: [
+      "//Item                                  — all Item elements",
+      "//Item[@status='active']                — active items only",
+      "//Item[@status='active' and Qty > 3]    — active with Qty > 3",
+      "//Item[last()]                           — last item",
+      "//Item[position() <= 2]                  — first two items",
+      "//Item[Category='Pumps']/@status         — status attrs of Pumps",
+    ]
+  },
+
+  xpathAggregation: {
+    label: 'Aggregation Functions',
+    icon:  '∑',
+    desc:  'sum(), count(), max(), min(), avg() — essential for CPI payload inspection',
+    cat:   'xpath',
+    xpathExpr: "sum(//Item/(UnitPrice * Qty))",
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<PurchaseOrder id="PO-8821" currency="EUR">
+  <Vendor>Siemens AG</Vendor>
+  <Items>
+    <Item>
+      <LineNo>10</LineNo>
+      <Material>SIE-CTRL-01</Material>
+      <Qty>4</Qty>
+      <UnitPrice>1250.00</UnitPrice>
+      <Confirmed>true</Confirmed>
+    </Item>
+    <Item>
+      <LineNo>20</LineNo>
+      <Material>SIE-CABLE-5M</Material>
+      <Qty>20</Qty>
+      <UnitPrice>38.50</UnitPrice>
+      <Confirmed>true</Confirmed>
+    </Item>
+    <Item>
+      <LineNo>30</LineNo>
+      <Material>SIE-RELAY-12V</Material>
+      <Qty>10</Qty>
+      <UnitPrice>95.00</UnitPrice>
+      <Confirmed>false</Confirmed>
+    </Item>
+    <Item>
+      <LineNo>40</LineNo>
+      <Material>SIE-FUSE-32A</Material>
+      <Qty>50</Qty>
+      <UnitPrice>4.20</UnitPrice>
+      <Confirmed>true</Confirmed>
+    </Item>
+  </Items>
+</PurchaseOrder>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>`,
+    xpathHints: [
+      "count(//Item)                             — total line count",
+      "count(//Item[Confirmed='true'])            — confirmed lines only",
+      "sum(//Item/UnitPrice)                     — sum of unit prices",
+      "max(//Item/UnitPrice)                     — most expensive item",
+      "min(//Item/Qty)                           — smallest quantity",
+      "avg(//Item/UnitPrice)                     — average unit price",
+    ]
+  },
+
+  xpathStringFunctions: {
+    label: 'String Functions',
+    icon:  '🔤',
+    desc:  'normalize-space, contains, starts-with, concat, upper-case, substring, string-length',
+    cat:   'xpath',
+    xpathExpr: "//Employee[contains(normalize-space(Name), 'Kumar')]",
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<Employees system="SuccessFactors">
+  <Employee>
+    <EmpId>  SF-1001  </EmpId>
+    <Name>Rahul Kumar</Name>
+    <Email>rahul.kumar@acme.com</Email>
+    <Department>IT Integration</Department>
+    <Status>active</Status>
+    <JoiningDate>2021-06-15</JoiningDate>
+  </Employee>
+  <Employee>
+    <EmpId>SF-1002</EmpId>
+    <Name>  Priya Sharma  </Name>
+    <Email>priya.sharma@acme.com</Email>
+    <Department>SAP Basis</Department>
+    <Status>ACTIVE</Status>
+    <JoiningDate>2019-03-01</JoiningDate>
+  </Employee>
+  <Employee>
+    <EmpId>SF-1003</EmpId>
+    <Name>Klaus Müller</Name>
+    <Email>k.mueller@acme.de</Email>
+    <Department>Finance</Department>
+    <Status>inactive</Status>
+    <JoiningDate>2018-11-20</JoiningDate>
+  </Employee>
+  <Employee>
+    <EmpId>SF-1004</EmpId>
+    <Name>Anita Kumar</Name>
+    <Email>anita.kumar@acme.com</Email>
+    <Department>IT Integration</Department>
+    <Status>active</Status>
+    <JoiningDate>2022-01-10</JoiningDate>
+  </Employee>
+</Employees>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>`,
+    xpathHints: [
+      "normalize-space(//Employee[1]/EmpId)                    — trim whitespace",
+      "upper-case(//Employee[3]/Status)                        — normalise case",
+      "//Employee[upper-case(Status)='ACTIVE']                 — case-insensitive filter",
+      "//Employee[contains(Name,'Kumar')]                      — partial name match",
+      "//Employee[starts-with(Email,'rahul')]                  — email prefix",
+      "string-length(//Employee[1]/Name)                       — name length",
+      "substring-before(//Employee[1]/Email,'@')               — local part of email",
+      "concat(//Employee[1]/Name,' (',//Employee[1]/EmpId,')')  — build display label",
+    ]
+  },
+
+  xpathTokenizeJoin: {
+    label: 'tokenize() & string-join()',
+    icon:  '🔗',
+    desc:  'Split delimited CPI property strings and reassemble — common in batch and routing flows',
+    cat:   'xpath',
+    xpathExpr: "tokenize(//BatchKeys, ';')",
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<CPIContext>
+  <!-- Semicolon-delimited keys saved before $batch call — typical CPI pattern -->
+  <BatchKeys>userId=20655282;userId=20654955;userId=20651100;userId=20651101</BatchKeys>
+
+  <!-- Comma-delimited routing categories from a CPI property -->
+  <RoutingCategories>INVOICE,CREDIT_NOTE,DEBIT_NOTE,REVERSAL</RoutingCategories>
+
+  <!-- Pipe-delimited error codes returned from downstream -->
+  <ErrorCodes>DUPLICATE_KEY|MANDATORY_FIELD_MISSING|INVALID_DATE_FORMAT</ErrorCodes>
+
+  <Records>
+    <Record><Id>REC-001</Id><Tags>urgent,finance,eu</Tags></Record>
+    <Record><Id>REC-002</Id><Tags>standard,hr</Tags></Record>
+    <Record><Id>REC-003</Id><Tags>urgent,procurement</Tags></Record>
+  </Records>
+</CPIContext>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>`,
+    xpathHints: [
+      "tokenize(//BatchKeys, ';')                              — split on semicolon",
+      "tokenize(//BatchKeys, ';')[2]                           — second token",
+      "count(tokenize(//BatchKeys, ';'))                       — token count",
+      "string-join(//Record/Id, ', ')                         — join element values",
+      "string-join(tokenize(//RoutingCategories,',')[position()<=2],';') — slice & rejoin",
+      "//Record[tokenize(Tags,',') = 'urgent']                — filter by tag in list",
+    ]
+  },
+
+  xpathRegexReplace: {
+    label: 'matches() & replace() — Regex',
+    icon:  '⚡',
+    desc:  'Validate and clean field values with XPath 2.0 regex — useful before CPI mapping',
+    cat:   'xpath',
+    xpathExpr: "replace(//Invoice[1]/VATNumber, '[^A-Z0-9]', '')",
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<Invoices>
+  <Invoice>
+    <Id>INV-2024-001</Id>
+    <Vendor>Bosch GmbH</Vendor>
+    <VATNumber>DE 123 456 789</VATNumber>
+    <Amount>  1,250.00  </Amount>
+    <IBAN>DE89 3704 0044 0532 0130 00</IBAN>
+    <Phone>+49 (0)89 1234-5678</Phone>
+  </Invoice>
+  <Invoice>
+    <Id>INV-2024-002</Id>
+    <Vendor>SAP SE</Vendor>
+    <VATNumber>DE987654321</VATNumber>
+    <Amount>8750.50</Amount>
+    <IBAN>DE27 2004 1010 0504 0100 04</IBAN>
+    <Phone>+49-6227-7-47474</Phone>
+  </Invoice>
+  <Invoice>
+    <Id>INV-2024-003</Id>
+    <Vendor>Invalid Corp</Vendor>
+    <VATNumber>INVALID!</VATNumber>
+    <Amount>not-a-number</Amount>
+    <IBAN>GB29NWBK60161331926819</IBAN>
+    <Phone>123</Phone>
+  </Invoice>
+</Invoices>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>`,
+    xpathHints: [
+      "replace(//Invoice[1]/VATNumber, '[^A-Z0-9]', '')       — strip non-alphanumeric",
+      "replace(//Invoice[1]/IBAN, ' ', '')                     — strip spaces from IBAN",
+      "replace(//Invoice[1]/Phone, '[^0-9+]', '')              — digits and + only",
+      "matches(//Invoice[2]/VATNumber, '^DE[0-9]{9}$')         — validate German VAT",
+      "matches(//Invoice[3]/Amount, '^[0-9]+(\.[0-9]+)?$')    — validate numeric",
+      "//Invoice[matches(VATNumber, '^DE[0-9]{9}$')]           — filter valid VAT only",
+    ]
+  },
+
+  xpathDateFunctions: {
+    label: 'Date & Duration Functions',
+    icon:  '📅',
+    desc:  'Parse, format and compare xs:date values — critical for CPI SLA and deadline checks',
+    cat:   'xpath',
+    xpathExpr: "//Order[xs:date(DeliveryDate) lt current-date()]",
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<Orders xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <Order>
+    <Id>ORD-001</Id>
+    <Customer>ACME Corp</Customer>
+    <OrderDate>2024-01-10</OrderDate>
+    <DeliveryDate>2024-01-25</DeliveryDate>
+    <Status>DELIVERED</Status>
+    <Amount>4500.00</Amount>
+  </Order>
+  <Order>
+    <Id>ORD-002</Id>
+    <Customer>Globex</Customer>
+    <OrderDate>2024-03-01</OrderDate>
+    <DeliveryDate>2027-06-30</DeliveryDate>
+    <Status>PENDING</Status>
+    <Amount>12000.00</Amount>
+  </Order>
+  <Order>
+    <Id>ORD-003</Id>
+    <Customer>Initech</Customer>
+    <OrderDate>2024-02-14</OrderDate>
+    <DeliveryDate>2027-12-31</DeliveryDate>
+    <Status>PENDING</Status>
+    <Amount>780.00</Amount>
+  </Order>
+</Orders>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0"
+  xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  exclude-result-prefixes="xs">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>`,
+    xpathHints: [
+      "current-date()                                           — today's date",
+      "current-dateTime()                                       — now with time",
+      "//Order[xs:date(DeliveryDate) lt current-date()]        — overdue orders",
+      "//Order[xs:date(DeliveryDate) gt current-date()]        — future deliveries",
+      "xs:date(//Order[1]/DeliveryDate) - xs:date(//Order[1]/OrderDate) — duration",
+      "format-date(xs:date(//Order[1]/OrderDate),'[D01]/[M01]/[Y0001]') — reformat date",
+      "year-from-date(xs:date(//Order[1]/OrderDate))            — extract year",
+      "month-from-date(xs:date(//Order[1]/OrderDate))           — extract month",
+    ]
+  },
+
+  xpathNamespaceAgnostic: {
+    label: 'Namespace-Agnostic Selection',
+    icon:  '🏷️',
+    desc:  'Use local-name() and *[local-name()] to query namespaced CPI payloads without prefix binding',
+    cat:   'xpath',
+    xpathExpr: "//*[local-name()='Amount']",
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<ns0:Invoice
+  xmlns:ns0="http://sap.com/xi/AP/FI/Global"
+  xmlns:ns1="http://sap.com/xi/AP/Common/Global"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ns0:Header>
+    <ns1:InvoiceId>FI-2024-88721</ns1:InvoiceId>
+    <ns1:PostingDate>2024-03-15</ns1:PostingDate>
+    <ns0:CompanyCode>1000</ns0:CompanyCode>
+    <ns0:Currency>EUR</ns0:Currency>
+    <ns0:Amount>18750.00</ns0:Amount>
+  </ns0:Header>
+  <ns0:LineItems>
+    <ns0:Item>
+      <ns1:LineNo>1</ns1:LineNo>
+      <ns1:GLAccount>400000</ns1:GLAccount>
+      <ns0:Amount>12000.00</ns0:Amount>
+      <ns0:CostCenter>CC-IT-01</ns0:CostCenter>
+    </ns0:Item>
+    <ns0:Item>
+      <ns1:LineNo>2</ns1:LineNo>
+      <ns1:GLAccount>470000</ns1:GLAccount>
+      <ns0:Amount>6750.00</ns0:Amount>
+      <ns0:CostCenter>CC-FIN-02</ns0:CostCenter>
+    </ns0:Item>
+  </ns0:LineItems>
+</ns0:Invoice>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>`,
+    xpathHints: [
+      "//*[local-name()='Amount']                              — all Amount elements, any ns",
+      "//*[local-name()='Item']                                — all Item elements",
+      "//*[local-name()='Invoice']/*[local-name()='Header']    — Header child of Invoice",
+      "string(//*[local-name()='InvoiceId'])                   — get ID value",
+      "sum(//*[local-name()='Item']/*[local-name()='Amount'])  — sum line amounts",
+      "namespace-uri(//*[local-name()='Amount'][1])            — inspect namespace URI",
+    ]
+  },
+
+  xpathBatchErrorDetect: {
+    label: 'Batch Error Detection',
+    icon:  '🚨',
+    desc:  'Identify failed changesets in SuccessFactors / OData $batch responses — real CPI pattern',
+    cat:   'xpath',
+    xpathExpr: "//batchChangeSetPartResponse[statusCode != '200']",
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<batchPartResponse>
+  <batchChangeSetResponse>
+    <batchChangeSetPartResponse>
+      <statusInfo>OK</statusInfo>
+      <statusCode>200</statusCode>
+      <body>
+        <UpsertResponses>
+          <EmpEmployment>
+            <key>userId=20655282</key>
+            <status>OK</status>
+            <editStatus>UPSERTED</editStatus>
+          </EmpEmployment>
+        </UpsertResponses>
+      </body>
+    </batchChangeSetPartResponse>
+  </batchChangeSetResponse>
+  <batchChangeSetResponse>
+    <batchChangeSetPartResponse>
+      <statusInfo>Bad Request</statusInfo>
+      <statusCode>400</statusCode>
+      <body>
+        <error>
+          <code>INVALID_FIELD_VALUE</code>
+          <message>Field userId=20654955 contains an invalid value</message>
+        </error>
+      </body>
+    </batchChangeSetPartResponse>
+  </batchChangeSetResponse>
+  <batchChangeSetResponse>
+    <batchChangeSetPartResponse>
+      <statusInfo>OK</statusInfo>
+      <statusCode>200</statusCode>
+      <body>
+        <UpsertResponses>
+          <EmpEmployment>
+            <key>userId=20651100</key>
+            <status>OK</status>
+            <editStatus>UPSERTED</editStatus>
+          </EmpEmployment>
+        </UpsertResponses>
+      </body>
+    </batchChangeSetPartResponse>
+  </batchChangeSetResponse>
+  <batchChangeSetResponse>
+    <batchChangeSetPartResponse>
+      <statusInfo>Internal Server Error</statusInfo>
+      <statusCode>500</statusCode>
+      <body>
+        <error>
+          <code>SERVER_ERROR</code>
+          <message>An unexpected error occurred processing userId=20651101</message>
+        </error>
+      </body>
+    </batchChangeSetPartResponse>
+  </batchChangeSetResponse>
+</batchPartResponse>`,
+    xslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>`,
+    xpathHints: [
+      "//batchChangeSetPartResponse[statusCode != '200']       — all failures",
+      "//batchChangeSetPartResponse[statusCode = '400']        — bad requests only",
+      "count(//batchChangeSetPartResponse[statusCode != '200']) — failure count",
+      "count(//batchChangeSetPartResponse[statusCode = '200']) — success count",
+      "//batchChangeSetPartResponse[statusCode != '200']/body/error/message — error msgs",
+      "every $r in //batchChangeSetPartResponse satisfies $r/statusCode = '200' — all ok?",
+    ]
+  }
+
 
 };

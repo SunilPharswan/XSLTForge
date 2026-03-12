@@ -83,6 +83,7 @@ function saveState() {
       properties: kvData.properties.map(r => ({ name: r.name, value: r.value })),
       leftCollapsed:  document.getElementById('colLeft')?.classList.contains('collapsed')  ?? false,
       rightCollapsed: document.getElementById('colRight')?.classList.contains('collapsed') ?? true,
+      xpathExpr:  document.getElementById('xpathInput')?.value ?? '',
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -125,6 +126,7 @@ function clearSavedState() {
   if (ind) ind.style.opacity = '0';
 
   if (eds.xml && eds.xslt) clearAllMarkers();
+  if (typeof clearXPathResults === 'function') clearXPathResults();
   setStatus('Ready', 'ok');
   clog('Session cleared — editors reset to defaults.', 'info');
 }
@@ -138,4 +140,3 @@ function showSavedIndicator() {
   clearTimeout(_savedFadeTimer);
   _savedFadeTimer = setTimeout(() => { ind.style.opacity = '0'; }, 2000);
 }
-

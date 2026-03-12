@@ -81,6 +81,19 @@
         </div>
         <input type="file" class="file-input-hidden" id="uploadXml" accept=".xml,.xsl,.xslt,.txt" onchange="handleUpload(event,'xml')">
       </div>
+      <!-- ── XPath Input Bar — evaluates against this XML input ── -->
+      <div class="xpath-bar" id="xpathBar">
+        <span class="xpath-icon">ƒx</span>
+        <input class="xpath-input" id="xpathInput"
+          placeholder="XPath 3.0 — e.g. //Order[@status='OPEN'] or count(//Item)"
+          onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runXPath();}"
+          oninput="scheduleSave()"
+          autocomplete="off" spellcheck="false"/>
+        <button class="xpath-run-btn" onclick="runXPath()">
+          Run <span class="kbd">⌘↵</span>
+        </button>
+      </div>
+
       <div class="editor-wrap" id="xmlEdWrap">
         <div id="xmlEd"></div>
       </div>
@@ -160,59 +173,78 @@
     </div>
   </div>
 
-  <!-- RIGHT: Output + Output Headers + Output Properties -->
+  <!-- RIGHT: XPath bar + Results + Output -->
   <div class="col col-side collapsed" id="colRight">
-    <!-- Collapsed tab (shown only when minimized) -->
+    <!-- Collapsed tab -->
     <div class="col-tab" onclick="toggleSideCol('right')">
       <div class="col-tab-dot ind-out"></div>
-      <span class="col-tab-label">Output Message</span>
+      <span class="col-tab-label">Output / XPath</span>
     </div>
     <!-- Normal content -->
     <div class="col-inner">
-      <div class="pane-bar">
-        <div class="pane-indicator ind-out"></div>
-        <span class="pane-title">Output Message</span>
-        <div class="pane-actions">
-          <button class="collapse-btn" title="Collapse panel" onclick="toggleSideCol('right')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg></button>
-          <div class="pane-divider"></div>
-          <span class="lang-badge">XML</span>
-          <button class="pane-act-btn" onclick="copyPane('out')">Copy</button>
-          <button class="pane-act-btn" onclick="clearPane('out')">Clear</button>
-          <div class="pane-divider"></div>
-          <button class="pane-icon-btn" title="Download output as XML" onclick="downloadPane('out','output.xml')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg></button>
+
+      <!-- ── XPath Results Panel (hidden until first run) ── -->
+      <div class="xpath-results-panel" id="xpathResultsPanel">
+        <div class="xpath-results-bar">
+          <span class="kv-icon">ƒx</span>
+          <span class="xpath-results-title">XPath Results</span>
+          <span class="xpath-match-count" id="xpathMatchCount">0 matches</span>
+          <div class="xpath-results-actions">
+            <button class="pane-act-btn" onclick="copyXPathResults()" title="Copy all results">Copy</button>
+            <button class="pane-act-btn" onclick="clearXPathResults()" title="Close results panel">Clear</button>
+          </div>
         </div>
-      </div>
-      <div class="editor-wrap" id="outEdWrap">
-        <div id="outEd"></div>
+        <div class="xpath-results-body" id="xpathResultsBody"></div>
       </div>
 
-      <!-- Output Headers Panel -->
-      <div class="kv-panel" id="outHdrPanel">
-        <div class="kv-header" onclick="toggleKVPanel('outHdrPanel')">
-          <span class="kv-icon">#</span>
-          <span class="kv-title">Headers</span>
-          <span class="kv-count" id="outHdrCount">0</span>
-          <svg class="kv-chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
+      <!-- ── Output Section (minimises to header when XPath results open) ── -->
+      <div class="output-section" id="outputSection">
+        <div class="pane-bar">
+          <div class="pane-indicator ind-out"></div>
+          <span class="pane-title">Output Message</span>
+          <div class="pane-actions">
+            <button class="collapse-btn" title="Collapse panel" onclick="toggleSideCol('right')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg></button>
+            <div class="pane-divider"></div>
+            <span class="lang-badge">XML</span>
+            <button class="pane-act-btn" onclick="copyPane('out')">Copy</button>
+            <button class="pane-act-btn" onclick="clearPane('out')">Clear</button>
+            <div class="pane-divider"></div>
+            <button class="pane-icon-btn" title="Download output as XML" onclick="downloadPane('out','output.xml')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg></button>
+          </div>
         </div>
-        <div class="kv-body" id="outHdrBody">
-          <div class="kv-table-head"><span>Name</span><span>Value</span></div>
-          <div id="outHdrRows"></div>
+        <div class="editor-wrap" id="outEdWrap">
+          <div id="outEd"></div>
+        </div>
+
+        <!-- Output Headers Panel -->
+        <div class="kv-panel" id="outHdrPanel">
+          <div class="kv-header" onclick="toggleKVPanel('outHdrPanel')">
+            <span class="kv-icon">#</span>
+            <span class="kv-title">Headers</span>
+            <span class="kv-count" id="outHdrCount">0</span>
+            <svg class="kv-chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
+          </div>
+          <div class="kv-body" id="outHdrBody">
+            <div class="kv-table-head"><span>Name</span><span>Value</span></div>
+            <div id="outHdrRows"></div>
+          </div>
+        </div>
+
+        <!-- Output Properties Panel -->
+        <div class="kv-panel" id="outPropPanel">
+          <div class="kv-header" onclick="toggleKVPanel('outPropPanel')">
+            <span class="kv-icon">⚙</span>
+            <span class="kv-title">Properties</span>
+            <span class="kv-count" id="outPropCount">0</span>
+            <svg class="kv-chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
+          </div>
+          <div class="kv-body" id="outPropBody">
+            <div class="kv-table-head"><span>Name</span><span>Value</span></div>
+            <div id="outPropRows"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Output Properties Panel -->
-      <div class="kv-panel" id="outPropPanel">
-        <div class="kv-header" onclick="toggleKVPanel('outPropPanel')">
-          <span class="kv-icon">⚙</span>
-          <span class="kv-title">Properties</span>
-          <span class="kv-count" id="outPropCount">0</span>
-          <svg class="kv-chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
-        </div>
-        <div class="kv-body" id="outPropBody">
-          <div class="kv-table-head"><span>Name</span><span>Value</span></div>
-          <div id="outPropRows"></div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -243,7 +275,7 @@
   <div class="ex-modal">
     <div class="ex-modal-header">
       <span class="ex-modal-title">Example Library</span>
-      <span class="ex-modal-count" id="exModalCount">16 examples</span>
+      <span class="ex-modal-count" id="exModalCount">24 examples</span>
       <div class="ex-search-wrap">
         <svg class="ex-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><path d="M11 11l3 3"/></svg>
         <input class="ex-modal-search" id="exModalSearch" placeholder="Search examples…" oninput="filterExamples()" autocomplete="off">
@@ -253,11 +285,12 @@
     <div class="ex-modal-body">
       <div class="ex-sidebar" id="exSidebar">
         <div class="ex-sidebar-label">Categories</div>
-        <button class="ex-cat-btn active" data-cat="all" onclick="setExCat('all')">All <span class="ex-cat-count">16</span></button>
+        <button class="ex-cat-btn active" data-cat="all" onclick="setExCat('all')">All <span class="ex-cat-count">24</span></button>
         <button class="ex-cat-btn" data-cat="transform" onclick="setExCat('transform')">Data Transform <span class="ex-cat-count">4</span></button>
         <button class="ex-cat-btn" data-cat="aggregation" onclick="setExCat('aggregation')">Aggregation <span class="ex-cat-count">3</span></button>
         <button class="ex-cat-btn" data-cat="format" onclick="setExCat('format')">Format <span class="ex-cat-count">3</span></button>
         <button class="ex-cat-btn" data-cat="cpi" onclick="setExCat('cpi')">SAP CPI <span class="ex-cat-count">6</span></button>
+        <button class="ex-cat-btn" data-cat="xpath" onclick="setExCat('xpath')">XPath Explorer <span class="ex-cat-count">8</span></button>
       </div>
       <div class="ex-grid-wrap" id="exGridWrap">
         <!-- Rendered by renderExGrid() -->
@@ -309,6 +342,7 @@
 <script src="js/files.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/share.js"></script>
+<script src="js/xpath.js"></script>
 <script src="js/editor.js"></script>
 
 </body>

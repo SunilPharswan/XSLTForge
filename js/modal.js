@@ -7,6 +7,7 @@ const CAT_ACCENT = {
   aggregation: '#f5a524',
   format:      '#c084fc',
   cpi:         '#0070f2',
+  xpath:       '#f5a524',
 };
 
 let exActiveCat = 'all';
@@ -76,7 +77,7 @@ function renderExGrid() {
     groups[cat].push(k);
   });
 
-  const CAT_LABELS = { transform:'Data Transformation', aggregation:'Aggregation & Splitting', format:'Format Conversion', cpi:'SAP CPI Patterns' };
+  const CAT_LABELS = { transform:'Data Transformation', aggregation:'Aggregation & Splitting', format:'Format Conversion', cpi:'SAP CPI Patterns', xpath:'XPath Explorer' };
 
   let html = '';
   Object.keys(groups).forEach(cat => {
@@ -150,15 +151,30 @@ function loadExample(key) {
   renderKV('headers');
   renderKV('properties');
 
-  // Collapse output pane so stale output from previous example isn't shown
-  const colRight = document.getElementById('colRight');
-  if (!colRight.classList.contains('collapsed')) {
-    colRight.classList.add('collapsed');
-    setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 250);
+  closeExModal();
+
+  if (ex.xpathExpr) {
+    // XPath example — skip the output-column collapse, open right column for results
+    const colRight = document.getElementById('colRight');
+    if (colRight.classList.contains('collapsed')) {
+      colRight.classList.remove('collapsed');
+      setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 250);
+    }
+    clog(`Example loaded: "${ex.label}" — XPath pre-filled, running…`, 'success');
+    const xpathInput = document.getElementById('xpathInput');
+    if (xpathInput) {
+      xpathInput.value = ex.xpathExpr;
+      setTimeout(() => { if (typeof runXPath === 'function') runXPath(); }, 350);
+    }
+  } else {
+    // Regular example — collapse output pane so stale output isn't shown
+    const colRight = document.getElementById('colRight');
+    if (!colRight.classList.contains('collapsed')) {
+      colRight.classList.add('collapsed');
+      setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 250);
+    }
+    clog(`Example loaded: "${ex.label}" — press Run Transform to execute`, 'success');
   }
 
-  closeExModal();
-  clog(`Example loaded: "${ex.label}" — press Run Transform to execute`, 'success');
   scheduleSave();
 }
-

@@ -392,6 +392,8 @@ require(['vs/editor/editor.main'], () => {
     if (_suppressNextValidation) { _suppressNextValidation = false; return; }
     monaco.editor.setModelMarkers(eds.xml.getModel(), 'xsltforge', []);
     if (xmlDecorations) { xmlDecorations.clear(); xmlDecorations = null; }
+    // Clear stale XPath highlights whenever the source XML is edited
+    if (typeof clearXPathHighlights === 'function') clearXPathHighlights();
     clearTimeout(xmlDebounce);
     xmlDebounce = setTimeout(runXmlValidation, 800);
   });
@@ -429,6 +431,11 @@ require(['vs/editor/editor.main'], () => {
         // Restore column collapse states
         if (_savedSession.leftCollapsed)  document.getElementById('colLeft')?.classList.add('collapsed');
         if (!_savedSession.rightCollapsed) document.getElementById('colRight')?.classList.remove('collapsed');
+        // Restore XPath expression
+        if (_savedSession.xpathExpr) {
+          const xpathInput = document.getElementById('xpathInput');
+          if (xpathInput) xpathInput.value = _savedSession.xpathExpr;
+        }
         // Relay Monaco after potential column changes
         setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 260);
 

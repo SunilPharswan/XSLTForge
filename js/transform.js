@@ -221,6 +221,9 @@ function runTransform() {
 
     const elapsed = (performance.now() - t0).toFixed(1);
 
+    // Restore output section if it was minimised by XPath panel
+    if (typeof restoreOutputSection === 'function') restoreOutputSection();
+
     // Flush xsl:message lines before completion log — fires in natural execution order
     _xslMessages.forEach(m => clog(`xsl:message → ${m}`, 'warn'));
 
