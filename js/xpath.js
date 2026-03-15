@@ -321,7 +321,10 @@ function runXPath() {
 
   const input = document.getElementById('xpathInput');
   const expr  = input?.value?.trim();
-  if (!expr) return;
+  if (!expr) {
+    clog('ƒx  Expression is empty — type an XPath expression and press Run', 'warn');
+    return;
+  }
 
   const xmlSrc = eds.xml?.getValue()?.trim();
 
@@ -336,7 +339,8 @@ function runXPath() {
   clearXPathHighlights();
 
   if (!xmlSrc) {
-    _showXPathResults([], 'XML pane is empty — add XML input first', true);
+    clog('ƒx  XML Source is empty — add XML input first', 'warn');
+    _showXPathResults([], 'XML Source is empty — add XML input first', true);
     return;
   }
 

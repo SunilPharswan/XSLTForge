@@ -385,7 +385,7 @@ require(['vs/editor/editor.main'], () => {
     contextMenuOrder: 10,
     run(ed) {
       const src = ed.getValue();
-      if (!src.trim()) return;
+      if (!src.trim()) { clog('XML pane is empty — nothing to format', 'warn'); return; }
       const fmt = prettyXML(src);
       ed.executeEdits('format-xml', [{
         range: ed.getModel().getFullModelRange(), text: fmt
@@ -480,7 +480,7 @@ require(['vs/editor/editor.main'], () => {
     contextMenuOrder: 10,
     run(ed) {
       const src = ed.getValue();
-      if (!src.trim()) return;
+      if (!src.trim()) { clog('XSLT pane is empty — nothing to format', 'warn'); return; }
       const fmt = prettyXML(src);
       ed.executeEdits('format-xml', [{
         range: ed.getModel().getFullModelRange(), text: fmt
@@ -566,7 +566,7 @@ require(['vs/editor/editor.main'], () => {
       saxonReady = true;
       hideLoader();
       clog('Saxon-JS 2.x loaded · XSLT 3.0 engine ready ✓', 'success');
-      clog('Shortcut: Ctrl+Enter (Cmd+Enter on Mac) to run transform', 'info');
+      clog('Ctrl+Enter runs XSLT transform in XSLT mode · runs XPath in XPath mode', 'info');
 
       // ── Share link takes priority over saved session ──
       if (window._pendingShareData) {

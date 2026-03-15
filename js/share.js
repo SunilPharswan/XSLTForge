@@ -58,6 +58,7 @@ function applyShareData(data) {
   if (typeof xpathEnabled !== 'undefined' && xpathEnabled) {
     xpathEnabled = false;
     if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+    clog('Switched to XSLT mode — share link loaded', 'info');
   }
 
   clearTimeout(xsltDebounce);
