@@ -350,8 +350,15 @@ function runXPath() {
 
   try {
     const t0      = performance.now();
+    const NS = {
+      xs:   'http://www.w3.org/2001/XMLSchema',
+      fn:   'http://www.w3.org/2005/xpath-functions',
+      math: 'http://www.w3.org/2005/xpath-functions/math',
+      map:  'http://www.w3.org/2005/xpath-functions/map',
+      array:'http://www.w3.org/2005/xpath-functions/array',
+    };
     const docNode = SaxonJS.XPath.evaluate('parse-xml($xml)', [], { params: { xml: xmlSrc } });
-    const raw     = SaxonJS.XPath.evaluate(expr, docNode, {});
+    const raw     = SaxonJS.XPath.evaluate(expr, docNode, { namespaceContext: NS });
     const elapsed = (performance.now() - t0).toFixed(1);
     const items   = _xpathNormalise(raw);
 

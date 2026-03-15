@@ -82,9 +82,6 @@ function renderExGrid() {
 
   document.getElementById('exModalCount').textContent = keys.length + ' example' + (keys.length !== 1 ? 's' : '');
 
-  // Update sidebar category badge counts dynamically from EXAMPLES data
-  renderExSidebar();
-
   if (!keys.length) {
     wrap.innerHTML = '<div class="ex-no-results">No examples match your search.</div>';
     return;
