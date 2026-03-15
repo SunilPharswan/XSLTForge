@@ -138,10 +138,12 @@ function loadExample(key) {
     _xpathPreColCenterCollapsed = colCenter?.classList.contains('collapsed') ?? false;
     xpathEnabled = true;
     if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+    clog('Switched to XPath mode', 'info');
   } else if (!ex.xpathExpr && xpathEnabled) {
     // XSLT example — switch to XSLT mode
     xpathEnabled = false;
     if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+    clog('Switched to XSLT mode', 'info');
   }
 
   // ── Step 2: Load content ──

@@ -385,7 +385,7 @@ require(['vs/editor/editor.main'], () => {
     contextMenuOrder: 10,
     run(ed) {
       const src = ed.getValue();
-      if (!src.trim()) return;
+      if (!src.trim()) { clog('XML pane is empty — nothing to format', 'warn'); return; }
       const fmt = prettyXML(src);
       ed.executeEdits('format-xml', [{
         range: ed.getModel().getFullModelRange(), text: fmt
@@ -480,7 +480,7 @@ require(['vs/editor/editor.main'], () => {
     contextMenuOrder: 10,
     run(ed) {
       const src = ed.getValue();
-      if (!src.trim()) return;
+      if (!src.trim()) { clog('XSLT pane is empty — nothing to format', 'warn'); return; }
       const fmt = prettyXML(src);
       ed.executeEdits('format-xml', [{
         range: ed.getModel().getFullModelRange(), text: fmt
@@ -555,6 +555,30 @@ require(['vs/editor/editor.main'], () => {
     xmlDebounce = setTimeout(runXmlValidation, 800);
   });
 
+  // ── Cursor position + character count in status bar ──────────────────────────
+  function _updateCursorStat(ed, label) {
+    const pos      = ed.getPosition();
+    const model    = ed.getModel();
+    if (!pos || !model) return;
+    const chars    = model.getValueLength();
+    const lines    = model.getLineCount();
+    const statEl   = document.getElementById('statCursor');
+    if (statEl) statEl.textContent =
+      `${label}  Ln ${pos.lineNumber}/${lines} · Col ${pos.column} · ${chars.toLocaleString()} chars`;
+  }
+
+  [
+    { ed: eds.xml,  label: 'XML' },
+    { ed: eds.xslt, label: 'XSLT' },
+    { ed: eds.out,  label: 'Output' },
+  ].forEach(({ ed, label }) => {
+    ed.onDidChangeCursorPosition(() => _updateCursorStat(ed, label));
+    ed.onDidFocusEditorText(()      => _updateCursorStat(ed, label));
+    ed.onDidChangeModelContent(()   => _updateCursorStat(ed, label));
+  });
+  // Initialise with XML pane on load
+  _updateCursorStat(eds.xml, 'XML');
+
   document.getElementById('loadTxt').textContent = 'Loading Saxon-JS…';
 
   // Wait for Saxon-JS
@@ -566,7 +590,7 @@ require(['vs/editor/editor.main'], () => {
       saxonReady = true;
       hideLoader();
       clog('Saxon-JS 2.x loaded · XSLT 3.0 engine ready ✓', 'success');
-      clog('Shortcut: Ctrl+Enter (Cmd+Enter on Mac) to run transform', 'info');
+      clog('Ctrl+Enter runs XSLT transform in XSLT mode · runs XPath in XPath mode', 'info');
 
       // ── Share link takes priority over saved session ──
       if (window._pendingShareData) {
