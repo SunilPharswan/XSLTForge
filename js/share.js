@@ -54,6 +54,12 @@ function loadFromShareHash() {
 function applyShareData(data) {
   if (!data) return;
 
+  // Share is XSLT-only — always switch to XSLT mode on the receiver side
+  if (typeof xpathEnabled !== 'undefined' && xpathEnabled) {
+    xpathEnabled = false;
+    if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+  }
+
   clearTimeout(xsltDebounce);
   clearTimeout(xmlDebounce);
   clearAllMarkers();

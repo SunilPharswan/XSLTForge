@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XSLTDebugX — SAP CPI Developer IDE</title>
+  <title>XSLTDebugX — SAP Cloud Integration XSLT IDE</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
@@ -24,19 +24,24 @@
   <div class="logo">
     <div class="logo-mark">XD</div>
     <span class="logo-name">XSLTDebugX</span>
-    <span class="logo-tag">SAP CPI</span>
+    <span class="logo-tag">SAP Cloud Integration</span>
+    <span class="logo-tag logo-tag-ide">XSLT IDE</span>
   </div>
 
   <div class="h-spacer"></div>
+
+  <button class="ex-btn share-btn" id="shareBtn" onclick="openShareModal()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"><circle cx="12" cy="3" r="1.8"/><circle cx="12" cy="13" r="1.8"/><circle cx="3" cy="8" r="1.8"/><path d="M10.3 3.9L4.7 7.1M4.7 8.9l5.6 3.2"/></svg>
+    Share
+  </button>
 
   <button class="ex-btn" id="exBtn" onclick="openExModal()">
     <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M1 3h14v1.5H1V3zm0 4h14v1.5H1V7zm0 4h14v1.5H1V11z"/></svg>
     Examples
   </button>
 
-  <button class="ex-btn share-btn" id="shareBtn" onclick="openShareModal()">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"><circle cx="12" cy="3" r="1.8"/><circle cx="12" cy="13" r="1.8"/><circle cx="3" cy="8" r="1.8"/><path d="M10.3 3.9L4.7 7.1M4.7 8.9l5.6 3.2"/></svg>
-    Share
+  <button class="ex-btn xpath-toggle-btn" id="xpathToggle" onclick="toggleXPath()" title="Toggle XPath evaluator">
+    ƒx XPath
   </button>
 
   <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark theme">☀️</button>
@@ -48,7 +53,7 @@
 
   <button class="run-btn" id="runBtn" onclick="runTransform()">
     <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg>
-    Run Transform
+    Run XSLT
     <span class="kbd">⌘↵</span>
   </button>
 </header>
@@ -61,13 +66,34 @@
     <!-- Collapsed tab (shown only when minimized) -->
     <div class="col-tab" onclick="toggleSideCol('left')">
       <div class="col-tab-dot ind-xml"></div>
-      <span class="col-tab-label">Input Message</span>
+      <span class="col-tab-label">XML Input Message</span>
     </div>
     <!-- Normal content -->
     <div class="col-inner">
-      <div class="pane-bar">
+      <!-- ── XQuery section (shown in XPath mode only) ── -->
+      <div id="xpathBar" style="display:none">
+        <div class="pane-bar">
+          <div class="pane-indicator ind-xpath"></div>
+          <span class="pane-title">XQuery</span>
+          <div class="pane-actions">
+            <span class="lang-badge">XQuery</span>
+            <button class="pane-act-btn" onclick="copyXPathInput()">Copy</button>
+            <button class="pane-act-btn" onclick="clearXPathInput()">Clear</button>
+          </div>
+        </div>
+        <div class="xpath-input-row">
+          <span class="xpath-icon">ƒx</span>
+          <input class="xpath-input" id="xpathInput"
+            placeholder="e.g. //Order[@status='OPEN'] or count(//Item)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();runXPath();}"
+            oninput="scheduleSave()"
+            autocomplete="off" spellcheck="false"/>
+        </div>
+      </div>
+      <!-- ── XML Input Message bar (always visible) ── -->
+      <div class="pane-bar" id="xmlPaneBar">
         <div class="pane-indicator ind-xml"></div>
-        <span class="pane-title">Input Message</span>
+        <span class="pane-title">XML Input Message</span>
         <div class="pane-actions">
           <span class="lang-badge">XML</span>
           <button class="pane-act-btn" onclick="fmtEditor('xml')">Format</button>
@@ -80,18 +106,6 @@
           <button class="collapse-btn" title="Collapse panel" onclick="toggleSideCol('left')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4L6 8l4 4"/></svg></button>
         </div>
         <input type="file" class="file-input-hidden" id="uploadXml" accept=".xml,.xsl,.xslt,.txt" onchange="handleUpload(event,'xml')">
-      </div>
-      <!-- ── XPath Input Bar — evaluates against this XML input ── -->
-      <div class="xpath-bar" id="xpathBar">
-        <span class="xpath-icon">ƒx</span>
-        <input class="xpath-input" id="xpathInput"
-          placeholder="XPath 3.0 — e.g. //Order[@status='OPEN'] or count(//Item)"
-          onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runXPath();}"
-          oninput="scheduleSave()"
-          autocomplete="off" spellcheck="false"/>
-        <button class="xpath-run-btn" onclick="runXPath()">
-          Run <span class="kbd">⌘↵</span>
-        </button>
       </div>
 
       <div class="editor-wrap" id="xmlEdWrap">
@@ -131,7 +145,7 @@
   </div>
 
   <!-- CENTER: XSLT Editor (full height) -->
-  <div class="col col-center">
+  <div class="col col-center" id="colCenter">
     <div class="pane-bar">
       <div class="pane-indicator ind-xslt"></div>
       <span class="pane-title">XSLT Stylesheet</span>
@@ -150,7 +164,7 @@
       <div id="xsltEd"></div>
     </div>
 
-    <!-- Console — lives inside center column -->
+    <!-- Console — default position: below XSLT editor. Moved below workspace in XPath mode. -->
     <div class="console-panel" id="consolePanel">
       <div class="console-bar" onclick="handleConsoleBarClick(event)">
         <span class="kv-icon">›_</span>
@@ -250,7 +264,6 @@
 
 </div>
 
-
 <!-- Share Modal -->
 <div class="ex-modal-backdrop" id="shareModalBackdrop" onclick="handleShareBackdropClick(event)">
   <div class="share-modal">
@@ -307,6 +320,9 @@
     <span id="statTxt">Ready</span>
   </div>
   <div class="stat">Saxon-JS 2.x · XSLT 3.0 Engine</div>
+  <div class="stat-mode" id="statMode" title="Current editor mode">
+    <span class="mode-pill mode-xslt" id="modePill">XSLT</span>
+  </div>
   <div class="stat-spacer"></div>
   <div id="savedIndicator" title="Session auto-saved to browser storage" style="
     font-family:'JetBrains Mono',monospace;font-size:10px;

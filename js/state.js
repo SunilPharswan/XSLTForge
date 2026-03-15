@@ -83,7 +83,9 @@ function saveState() {
       properties: kvData.properties.map(r => ({ name: r.name, value: r.value })),
       leftCollapsed:  document.getElementById('colLeft')?.classList.contains('collapsed')  ?? false,
       rightCollapsed: document.getElementById('colRight')?.classList.contains('collapsed') ?? true,
-      xpathExpr:  document.getElementById('xpathInput')?.value ?? '',
+      centerCollapsed: !xpathEnabled && (document.getElementById('colCenter')?.classList.contains('collapsed') ?? false),
+      xpathExpr:    document.getElementById('xpathInput')?.value ?? '',
+      xpathEnabled: xpathEnabled,
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -127,6 +129,14 @@ function clearSavedState() {
 
   if (eds.xml && eds.xslt) clearAllMarkers();
   if (typeof clearXPathResults === 'function') clearXPathResults();
+  const xpathInput = document.getElementById('xpathInput');
+  if (xpathInput) xpathInput.value = '';
+  // Reset XPath toggle to default (off)
+  if (typeof xpathEnabled !== 'undefined') {
+    xpathEnabled = false;
+    if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+    setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 50);
+  }
   setStatus('Ready', 'ok');
   clog('Session cleared — editors reset to defaults.', 'info');
 }

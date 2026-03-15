@@ -15,8 +15,12 @@ let exActiveCat = 'all';
 function openExModal() {
   document.getElementById('exModalBackdrop').classList.add('open');
   document.getElementById('exModalSearch').value = '';
-  exActiveCat = 'all';
-  document.querySelectorAll('.ex-cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+  // Pre-select category based on current mode, but show all categories always
+  exActiveCat = xpathEnabled ? 'xpath' : 'all';
+  document.querySelectorAll('.ex-cat-btn').forEach(b => {
+    b.style.display = ''; // always show all category buttons
+    b.classList.toggle('active', b.dataset.cat === exActiveCat);
+  });
   renderExGrid();
   setTimeout(() => document.getElementById('exModalSearch').focus(), 60);
 }
@@ -35,10 +39,11 @@ document.addEventListener('keydown', e => {
     closeExModal();
     return;
   }
-  // Ctrl+Enter / Cmd+Enter → run transform (works even when KV inputs have focus)
+  // Ctrl+Enter / Cmd+Enter → mode-aware run (works even when KV inputs have focus)
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
-    runTransform();
+    if (typeof xpathEnabled !== 'undefined' && xpathEnabled) runXPath();
+    else runTransform();
   }
 });
 
@@ -112,54 +117,61 @@ function loadExample(key) {
   const ex = EXAMPLES[key];
   if (!ex) return;
 
-  // Cancel pending debounce timers and suppress the new ones triggered by setValue
+  // ── Step 1: Switch mode based on example type BEFORE loading content ──
+  if (ex.xpathExpr && !xpathEnabled) {
+    // XPath example — switch to XPath mode
+    const colCenter = document.getElementById('colCenter');
+    _xpathPreColCenterCollapsed = colCenter?.classList.contains('collapsed') ?? false;
+    xpathEnabled = true;
+    if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+  } else if (!ex.xpathExpr && xpathEnabled) {
+    // XSLT example — switch to XSLT mode
+    xpathEnabled = false;
+    if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+  }
+
+  // ── Step 2: Load content ──
   clearTimeout(xsltDebounce);
   clearTimeout(xmlDebounce);
   clearAllMarkers();
 
-  // try/finally guarantees the flag is cleared even if setValue or clearAllMarkers throws
-  // (e.g. a disposed Monaco model), preventing validation from being silently disabled
-  // for the rest of the session.
   try {
     _suppressNextValidation = true;
     eds.xml?.setValue(ex.xml);
-    _suppressNextValidation = true;
-    eds.xslt?.setValue(ex.xslt);
+    // Only set XSLT if in XSLT mode (and example has XSLT content)
+    if (!xpathEnabled && ex.xslt) {
+      _suppressNextValidation = true;
+      eds.xslt?.setValue(ex.xslt);
+    }
   } finally {
     _suppressNextValidation = false;
   }
   eds.out?.updateOptions({ readOnly: false });
   eds.out?.setValue('');
   eds.out?.updateOptions({ readOnly: true });
-  // Reset output KV panels
   renderOutputKV({}, {});
-  // If example ships with headers/properties, pre-fill them
-  kvData = { headers: [], properties: [] };
-  kvIdSeq = 0;
-  if (ex.headers) {
-    ex.headers.forEach(([n,v]) => {
-      kvIdSeq++;
-      kvData.headers.push({ id: kvIdSeq, name: n, value: v });
-    });
+
+  // Only set KV panels in XSLT mode — they're hidden in XPath mode
+  if (!xpathEnabled) {
+    kvData = { headers: [], properties: [] };
+    kvIdSeq = 0;
+    if (ex.headers) {
+      ex.headers.forEach(([n,v]) => { kvIdSeq++; kvData.headers.push({ id: kvIdSeq, name: n, value: v }); });
+    }
+    if (ex.properties) {
+      ex.properties.forEach(([n,v]) => { kvIdSeq++; kvData.properties.push({ id: kvIdSeq, name: n, value: v }); });
+    }
+    renderKV('headers');
+    renderKV('properties');
   }
-  if (ex.properties) {
-    ex.properties.forEach(([n,v]) => {
-      kvIdSeq++;
-      kvData.properties.push({ id: kvIdSeq, name: n, value: v });
-    });
-  }
-  renderKV('headers');
-  renderKV('properties');
 
   closeExModal();
 
+  // ── Step 3: Post-load layout and actions ──
   if (ex.xpathExpr) {
-    // XPath example — skip the output-column collapse, open right column for results
     const colRight = document.getElementById('colRight');
-    if (colRight.classList.contains('collapsed')) {
-      colRight.classList.remove('collapsed');
-      setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 250);
-    }
+    if (colRight.classList.contains('collapsed')) colRight.classList.remove('collapsed');
+    setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 250);
     clog(`Example loaded: "${ex.label}" — XPath pre-filled, running…`, 'success');
     const xpathInput = document.getElementById('xpathInput');
     if (xpathInput) {
@@ -167,7 +179,6 @@ function loadExample(key) {
       setTimeout(() => { if (typeof runXPath === 'function') runXPath(); }, 350);
     }
   } else {
-    // Regular example — collapse output pane so stale output isn't shown
     const colRight = document.getElementById('colRight');
     if (!colRight.classList.contains('collapsed')) {
       colRight.classList.add('collapsed');

@@ -1461,13 +1461,7 @@ const EXAMPLES = {
     </Item>
   </Items>
 </SalesOrder>`,
-    xslt: `<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="xml" indent="yes"/>
-  <xsl:template match="@* | node()">
-    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
-  </xsl:template>
-</xsl:stylesheet>`,
+    xslt: '',
     xpathHints: [
       "//Item                                  — all Item elements",
       "//Item[@status='active']                — active items only",
@@ -1518,13 +1512,7 @@ const EXAMPLES = {
     </Item>
   </Items>
 </PurchaseOrder>`,
-    xslt: `<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="xml" indent="yes"/>
-  <xsl:template match="@* | node()">
-    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
-  </xsl:template>
-</xsl:stylesheet>`,
+    xslt: '',
     xpathHints: [
       "count(//Item)                             — total line count",
       "count(//Item[Confirmed='true'])            — confirmed lines only",
@@ -1576,13 +1564,7 @@ const EXAMPLES = {
     <JoiningDate>2022-01-10</JoiningDate>
   </Employee>
 </Employees>`,
-    xslt: `<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="xml" indent="yes"/>
-  <xsl:template match="@* | node()">
-    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
-  </xsl:template>
-</xsl:stylesheet>`,
+    xslt: '',
     xpathHints: [
       "normalize-space(//Employee[1]/EmpId)                    — trim whitespace",
       "upper-case(//Employee[3]/Status)                        — normalise case",
@@ -1600,7 +1582,7 @@ const EXAMPLES = {
     icon:  '🔗',
     desc:  'Split delimited CPI property strings and reassemble — common in batch and routing flows',
     cat:   'xpath',
-    xpathExpr: "tokenize(//BatchKeys, ';')",
+    xpathExpr: "string-join(tokenize(//BatchKeys, ';'), ',')",
     xml: `<?xml version="1.0" encoding="UTF-8"?>
 <CPIContext>
   <!-- Semicolon-delimited keys saved before $batch call — typical CPI pattern -->
@@ -1618,13 +1600,7 @@ const EXAMPLES = {
     <Record><Id>REC-003</Id><Tags>urgent,procurement</Tags></Record>
   </Records>
 </CPIContext>`,
-    xslt: `<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="xml" indent="yes"/>
-  <xsl:template match="@* | node()">
-    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
-  </xsl:template>
-</xsl:stylesheet>`,
+    xslt: '',
     xpathHints: [
       "tokenize(//BatchKeys, ';')                              — split on semicolon",
       "tokenize(//BatchKeys, ';')[2]                           — second token",
@@ -1668,13 +1644,7 @@ const EXAMPLES = {
     <Phone>123</Phone>
   </Invoice>
 </Invoices>`,
-    xslt: `<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="xml" indent="yes"/>
-  <xsl:template match="@* | node()">
-    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
-  </xsl:template>
-</xsl:stylesheet>`,
+    xslt: '',
     xpathHints: [
       "replace(//Invoice[1]/VATNumber, '[^A-Z0-9]', '')       — strip non-alphanumeric",
       "replace(//Invoice[1]/IBAN, ' ', '')                     — strip spaces from IBAN",
@@ -1718,16 +1688,7 @@ const EXAMPLES = {
     <Amount>780.00</Amount>
   </Order>
 </Orders>`,
-    xslt: `<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="3.0"
-  xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
-  xmlns:xs="http://www.w3.org/2001/XMLSchema"
-  exclude-result-prefixes="xs">
-  <xsl:output method="xml" indent="yes"/>
-  <xsl:template match="@* | node()">
-    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
-  </xsl:template>
-</xsl:stylesheet>`,
+    xslt: '',
     xpathHints: [
       "current-date()                                           — today's date",
       "current-dateTime()                                       — now with time",
@@ -1773,13 +1734,7 @@ const EXAMPLES = {
     </ns0:Item>
   </ns0:LineItems>
 </ns0:Invoice>`,
-    xslt: `<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="xml" indent="yes"/>
-  <xsl:template match="@* | node()">
-    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
-  </xsl:template>
-</xsl:stylesheet>`,
+    xslt: '',
     xpathHints: [
       "//*[local-name()='Amount']                              — all Amount elements, any ns",
       "//*[local-name()='Item']                                — all Item elements",
@@ -1853,13 +1808,7 @@ const EXAMPLES = {
     </batchChangeSetPartResponse>
   </batchChangeSetResponse>
 </batchPartResponse>`,
-    xslt: `<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="xml" indent="yes"/>
-  <xsl:template match="@* | node()">
-    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
-  </xsl:template>
-</xsl:stylesheet>`,
+    xslt: '',
     xpathHints: [
       "//batchChangeSetPartResponse[statusCode != '200']       — all failures",
       "//batchChangeSetPartResponse[statusCode = '400']        — bad requests only",

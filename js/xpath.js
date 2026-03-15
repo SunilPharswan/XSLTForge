@@ -8,6 +8,102 @@
 
 // Decoration collection for XPath highlights in the XML editor
 let xpathDecorations = null;
+let xpathEnabled = false; // off by default — user must explicitly enable
+let _xpathPreColCenterCollapsed = false; // colCenter state before XPath was enabled
+
+// ── Apply XPath enabled/disabled state to DOM (no logging, no side effects) ──
+function _applyXPathToggleState() {
+  const btn        = document.getElementById('xpathToggle');
+  const bar        = document.getElementById('xpathBar');
+  const colCenter  = document.getElementById('colCenter');
+  const hdrPanel   = document.getElementById('hdrPanel');
+  const propPanel  = document.getElementById('propPanel');
+  const outSection = document.getElementById('outputSection');
+  const console_   = document.getElementById('consolePanel');
+  const workspace  = document.querySelector('.workspace');
+  const shareBtn   = document.getElementById('shareBtn');
+  const runBtn     = document.getElementById('runBtn');
+  const consoleTtl = document.querySelector('.console-title');
+
+  if (btn) btn.classList.toggle('active', xpathEnabled);
+  if (bar) bar.style.display = xpathEnabled ? '' : 'none';
+
+  // When enabling: always collapse colCenter. When disabling: restore to pre-xpath state.
+  if (colCenter) {
+    if (xpathEnabled) {
+      colCenter.classList.add('collapsed');
+    } else {
+      colCenter.classList.toggle('collapsed', _xpathPreColCenterCollapsed);
+    }
+  }
+
+  // XPath mode: hide input KV panels and output section — XML + results only
+  const kvDisplay = xpathEnabled ? 'none' : '';
+  if (hdrPanel)   hdrPanel.style.display   = kvDisplay;
+  if (propPanel)  propPanel.style.display  = kvDisplay;
+  if (outSection) outSection.style.display = kvDisplay;
+
+  // #3 Share hidden in XPath mode
+  if (shareBtn) {
+    shareBtn.classList.toggle('hidden', xpathEnabled);
+  }
+
+  // #4 Run button — rename and rewire by mode (never hidden)
+  if (runBtn) {
+    if (xpathEnabled) {
+      runBtn.onclick = runXPath;
+      runBtn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XPath <span class="kbd">⌘↵</span>`;
+    } else {
+      runBtn.onclick = runTransform;
+      runBtn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XSLT <span class="kbd">⌘↵</span>`;
+    }
+  }
+
+  // Mode pill in status bar + console label
+  const modePill = document.getElementById('modePill');
+  if (modePill) {
+    modePill.textContent = xpathEnabled ? 'XPath' : 'XSLT';
+    modePill.className = xpathEnabled ? 'mode-pill mode-xpath' : 'mode-pill mode-xslt';
+  }
+  if (consoleTtl) consoleTtl.textContent = xpathEnabled ? 'Console · XPath Mode' : 'Console · XSLT Mode';
+
+  // Move console: XPath mode → below workspace; XSLT mode → inside colCenter (below XSLT editor)
+  if (console_ && colCenter && workspace) {
+    if (xpathEnabled) {
+      workspace.insertAdjacentElement('afterend', console_);
+    } else {
+      colCenter.appendChild(console_);
+    }
+  }
+}
+
+// ── Toggle XPath evaluator on/off ─────────────────────────────────────────────
+function toggleXPath() {
+  xpathEnabled = !xpathEnabled;
+
+  if (xpathEnabled) {
+    // Save colCenter collapsed state before we hide it
+    const colCenter = document.getElementById('colCenter');
+    _xpathPreColCenterCollapsed = colCenter?.classList.contains('collapsed') ?? false;
+  }
+
+  _applyXPathToggleState();
+
+  // Open right column when enabling — XPath results need to be visible
+  if (xpathEnabled) {
+    const colRight = document.getElementById('colRight');
+    if (colRight?.classList.contains('collapsed')) colRight.classList.remove('collapsed');
+  }
+
+  if (!xpathEnabled) {
+    clearXPathResults();
+    clog('Switched to XSLT mode', 'info');
+  } else {
+    clog('Switched to XPath mode', 'info');
+  }
+  scheduleSave();
+  setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 50);
+}
 
 // ── Clear all XPath highlights from the XML editor ───────────────────────────
 function clearXPathHighlights() {
@@ -215,6 +311,11 @@ function _xpathNormalise(result) {
 // ── Main entry point ──────────────────────────────────────────────────────────
 function runXPath() {
   if (!saxonReady) { clog('Saxon-JS not ready yet', 'error'); return; }
+  if (!xpathEnabled) return;
+
+  // Reset error badge for fresh run
+  consoleErrCount = 0;
+  updateConsoleErrBadge();
 
   const input = document.getElementById('xpathInput');
   const expr  = input?.value?.trim();
@@ -282,17 +383,132 @@ function runXPath() {
   }
 }
 
+// ── Build an absolute XPath for a DOM element node ───────────────────────────
+// indexed=true  → /Orders/Order[2]/Amount  (positional, exact)
+// indexed=false → /Orders/Order/Amount     (general, pattern)
+function _buildXPathFromNode(el, indexed = true) {
+  const parts = [];
+  let node = el;
+  while (node && node.nodeType === 1) {
+    const tag      = node.nodeName;
+    const siblings = node.parentNode
+      ? [...node.parentNode.children].filter(c => c.nodeName === tag)
+      : [node];
+    const idx = siblings.indexOf(node) + 1;
+    parts.unshift(
+      indexed && siblings.length > 1 ? `${tag}[${idx}]` : tag
+    );
+    node = node.parentNode;
+  }
+  return '/' + parts.join('/');
+}
+
+// ── Public: get XPath at current cursor position in the XML editor ────────────
+// Returns { indexed, general } — both absolute XPath strings, or null.
+function getXPathAtCursor(editor) {
+  const model  = editor.getModel();
+  const pos    = editor.getPosition();
+  const offset = model.getOffsetAt(pos);
+  const src    = model.getValue();
+  const domNode = _getXPathDomNodeAtOffset(src, offset);
+  if (!domNode) return null;
+  return {
+    indexed: _buildXPathFromNode(domNode, true),
+    general: _buildXPathFromNode(domNode, false),
+  };
+}
+
+// ── Find the element at a character offset in raw XML source ─────────────────
+function _getXPathDomNodeAtOffset(xmlSrc, offset) {
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(xmlSrc, 'application/xml');
+  if (doc.querySelector('parsererror')) return null;
+
+  const tagRe = /<([\w:.-]+)(?=[\s>/])/g;
+  let m;
+  const tagOccurrences = {};
+  let bestTag = null, bestOcc = 0, bestStart = -1;
+
+  while ((m = tagRe.exec(xmlSrc)) !== null) {
+    const tag = m[1];
+    if (tag.startsWith('/') || tag.startsWith('?') || tag.startsWith('!')) continue;
+    tagOccurrences[tag] = (tagOccurrences[tag] || 0) + 1;
+    const occ   = tagOccurrences[tag];
+    const range = _findNodeRangeByTag(xmlSrc, tag, occ);
+    if (!range) continue;
+    if (offset >= range.startOffset && offset <= range.endOffset) {
+      if (range.startOffset >= bestStart) {
+        bestTag = tag; bestOcc = occ; bestStart = range.startOffset;
+      }
+    }
+  }
+
+  if (!bestTag) return null;
+  const allNodes = [...doc.getElementsByTagName('*')].filter(el => el.nodeName === bestTag);
+  return allNodes[bestOcc - 1] ?? null;
+}
+
+// Variant of _findNodeRange that takes tag + occurrence directly (no DOM element needed)
+function _findNodeRangeByTag(xmlSrc, tag, occurrenceIndex) {
+  const openOffset = _nthTagOpen(xmlSrc, tag, occurrenceIndex);
+  if (openOffset === -1) return null;
+
+  let i = openOffset + tag.length + 1;
+  let inDouble = false, inSingle = false;
+  while (i < xmlSrc.length) {
+    const ch = xmlSrc[i];
+    if (!inDouble && !inSingle) {
+      if (ch === '"')  { inDouble = true;  i++; continue; }
+      if (ch === "'")  { inSingle = true;  i++; continue; }
+      if (ch === '>')  { i++; break; }
+    } else if (inDouble && ch === '"') { inDouble = false; }
+      else if (inSingle && ch === "'") { inSingle = false; }
+    i++;
+  }
+  const openTagEnd = i;
+  if (xmlSrc[i - 2] === '/') return { startOffset: openOffset, endOffset: openTagEnd };
+
+  let depth = 1, j = openTagEnd;
+  const openRe  = new RegExp(`<${tag}(?=[\\s>/])`, 'g');
+  const closeRe = new RegExp(`<\\/${tag}(?=[\\s>])`, 'g');
+  while (depth > 0) {
+    openRe.lastIndex  = j;
+    closeRe.lastIndex = j;
+    const nextOpen  = openRe.exec(xmlSrc);
+    const nextClose = closeRe.exec(xmlSrc);
+    if (!nextClose) break;
+    if (nextOpen && nextOpen.index < nextClose.index) {
+      depth++;
+      j = nextOpen.index + nextOpen[0].length;
+    } else {
+      depth--;
+      if (depth === 0) {
+        const closeEnd = xmlSrc.indexOf('>', nextClose.index);
+        return { startOffset: openOffset, endOffset: closeEnd === -1 ? nextClose.index + nextClose[0].length : closeEnd + 1 };
+      }
+      j = nextClose.index + nextClose[0].length;
+    }
+  }
+  return { startOffset: openOffset, endOffset: openTagEnd };
+}
+
 // ── Render results panel ───────────────────────────────────────────────────────
 // Async because monaco.editor.colorize() returns a Promise.
+// Generation counter prevents a slow first run overwriting a faster second run.
+let _showXPathGen = 0;
 async function _showXPathResults(items, errorMsg, isError) {
+  const gen = ++_showXPathGen; // capture generation for this call
   const panel   = document.getElementById('xpathResultsPanel');
   const body    = document.getElementById('xpathResultsBody');
   const countEl = document.getElementById('xpathMatchCount');
-  const outSec  = document.getElementById('outputSection');
 
   panel.classList.add('visible');
-  outSec.classList.add('xpath-minimized');
-  setTimeout(() => { eds.out?.layout(); }, 250);
+  // Only minimise output section if it's actually visible (not hidden in XPath mode)
+  const outSec = document.getElementById('outputSection');
+  if (outSec && outSec.style.display !== 'none') {
+    outSec.classList.add('xpath-minimized');
+    setTimeout(() => { eds.out?.layout(); }, 250);
+  }
 
   if (isError) {
     countEl.textContent = 'Error';
@@ -326,6 +542,9 @@ async function _showXPathResults(items, errorMsg, isError) {
     return escHtml(text);
   }));
 
+  // Bail if a newer run has started while we were awaiting colorize
+  if (gen !== _showXPathGen) return;
+
   body.innerHTML = serialized.map(({ type }, i) => {
     const typeLabel = type === 'node' ? 'Node' : type === 'text' ? 'Text' : 'Value';
     return `<div class="xpath-result-item">
@@ -341,14 +560,42 @@ function clearXPathResults() {
   clearXPathHighlights();
   document.getElementById('xpathResultsPanel')?.classList.remove('visible');
   document.getElementById('outputSection')?.classList.remove('xpath-minimized');
-  const input = document.getElementById('xpathInput');
-  if (input) input.value = '';
   setTimeout(() => { eds.out?.layout(); }, 250);
 }
 
 // ── Restore output section when a transform runs ──────────────────────────────
 function restoreOutputSection() {
   document.getElementById('outputSection')?.classList.remove('xpath-minimized');
+  // Collapse XPath results panel and clear editor highlights — mirror of output being minimized during XPath run
+  document.getElementById('xpathResultsPanel')?.classList.remove('visible');
+  clearXPathHighlights();
+}
+
+// ── Clear XPath expression input ──────────────────────────────────────────────
+function clearXPathInput() {
+  const input = document.getElementById('xpathInput');
+  if (input) { input.value = ''; input.focus(); scheduleSave(); }
+  clearXPathResults();
+}
+
+// ── Copy XPath expression to clipboard ────────────────────────────────────────
+function copyXPathInput() {
+  const expr = document.getElementById('xpathInput')?.value?.trim();
+  if (!expr) return clog('XPath bar is empty — nothing to copy', 'warn');
+  const onSuccess = () => clog(`ƒx  Expression copied to clipboard ✓`, 'success');
+  const onFail    = () => {
+    const ta = document.createElement('textarea');
+    ta.value = expr;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    const ok = (() => { try { return document.execCommand('copy'); } catch(_) { return false; } })();
+    document.body.removeChild(ta);
+    ok ? onSuccess() : clog('Clipboard access denied', 'error');
+  };
+  if (window.navigator?.clipboard?.writeText) {
+    navigator.clipboard.writeText(expr).then(onSuccess, onFail);
+  } else { onFail(); }
 }
 
 // ── Copy results to clipboard ──────────────────────────────────────────────────

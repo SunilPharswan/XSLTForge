@@ -21,6 +21,7 @@
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .hidden { display: none !important; }
 
     body {
       font-family: 'Syne', sans-serif;
@@ -99,10 +100,16 @@
       color: #60a0f8;
       letter-spacing: 0.6px;
     }
+    .logo-tag-ide {
+      background: rgba(63,185,80,0.1);
+      border-color: rgba(63,185,80,0.28);
+      color: #3fb950;
+    }
     .h-spacer { flex: 1; }
     .run-btn {
       display: flex; align-items: center; gap: 7px;
-      padding: 7px 18px;
+      padding: 7px 0;
+      min-width: 148px; width: 148px; justify-content: center;
       background: linear-gradient(135deg, #0068e0, #0098f0);
       border: none; border-radius: 7px;
       color: #fff; cursor: pointer;
@@ -135,6 +142,7 @@
     .col-side   { flex: 1; min-width: 0; border-right: 1px solid var(--border); }
     .col-side:last-child { border-right: none; border-left: 1px solid var(--border); }
     .col-center { flex: 1.2; min-width: 0; border-right: 1px solid var(--border); }
+    .col-center.collapsed { display: none; }
 
     /* Collapsed side column — slim vertical tab */
     .col-side.collapsed {
@@ -523,6 +531,23 @@
     .stat-dot.err  { background: var(--error); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
     .stat-spacer { flex: 1; }
+    .stat-mode { display: flex; align-items: center; }
+    .mode-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 700;
+      letter-spacing: 0.8px; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 3px;
+    }
+    .mode-pill.mode-xslt {
+      background: rgba(0,112,242,0.2);
+      color: rgba(255,255,255,0.85);
+      border: 1px solid rgba(0,112,242,0.4);
+    }
+    .mode-pill.mode-xpath {
+      background: rgba(245,165,36,0.2);
+      color: rgba(255,255,255,0.85);
+      border: 1px solid rgba(245,165,36,0.4);
+    }
 
     /* ── LIGHT THEME ── */
     body.light {
@@ -566,13 +591,19 @@
     /* ════════════════════════════════════════════
        XPATH BAR & RESULTS
     ════════════════════════════════════════════ */
-    .xpath-bar {
+    /* XPath section wrapper — hidden until XPath mode enabled */
+    #xpathBar {
       flex-shrink: 0;
+      display: flex; flex-direction: column;
+    }
+    .ind-xpath { background: var(--sap-blue); box-shadow: 0 0 6px rgba(0,112,242,0.5); }
+    .xpath-input-row {
       display: flex; align-items: center; gap: 8px;
       padding: 0 12px;
-      height: 36px;
-      background: var(--bg-panel);
+      height: 34px;
+      background: var(--bg-editor);
       border-bottom: 2px solid var(--sap-blue);
+      flex-shrink: 0;
     }
     .xpath-icon {
       font-family: 'JetBrains Mono', monospace;
@@ -580,6 +611,12 @@
       color: var(--sap-blue);
       flex-shrink: 0;
       user-select: none;
+    }
+    .xpath-toggle-btn {
+      opacity: 0.5;
+    }
+    .xpath-toggle-btn.active {
+      opacity: 1;
     }
     .xpath-input {
       flex: 1; min-width: 0;
@@ -591,21 +628,6 @@
       caret-color: var(--sap-blue);
     }
     .xpath-input::placeholder { color: var(--text-dim); }
-    .xpath-run-btn {
-      flex-shrink: 0;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px; font-weight: 700;
-      padding: 4px 10px; border-radius: 5px;
-      background: var(--sap-blue);
-      color: #fff; border: none; cursor: pointer;
-      display: flex; align-items: center; gap: 5px;
-      transition: background 0.15s, opacity 0.15s;
-    }
-    .xpath-run-btn:hover { background: #0060d0; }
-    .xpath-run-btn .kbd {
-      font-size: 9px; opacity: 0.7;
-      font-family: 'JetBrains Mono', monospace;
-    }
 
     /* Results panel */
     .xpath-results-panel {
@@ -620,7 +642,7 @@
     }
     .xpath-results-bar {
       flex-shrink: 0;
-      height: 32px;
+      height: 36px;
       display: flex; align-items: center; gap: 6px;
       padding: 0 12px;
       background: var(--bg-panel);
@@ -739,7 +761,7 @@
     }
 
     /* Light theme overrides */
-    body.light .xpath-bar { background: var(--bg-panel); }
+    body.light #xpathBar .xpath-input-row { background: var(--bg-editor); }
     body.light .xpath-input { color: var(--text-primary); }
     body.light .xpath-results-body { background: var(--bg-editor); }
     body.light .xpath-result-item:hover { background: rgba(0,0,0,0.02); }

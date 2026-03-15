@@ -187,11 +187,11 @@ require(['vs/editor/editor.main'], () => {
     { ...shared, language: 'xml', value: '', readOnly: true, renderValidationDecorations: 'off' }
   );
 
-  // Ctrl/Cmd+Enter → run
+  // Ctrl/Cmd+Enter → run XPath in XPath mode, run transform in XSLT mode
   [eds.xml, eds.xslt].forEach(ed => {
     ed.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
-      runTransform
+      () => { if (xpathEnabled) runXPath(); else runTransform(); }
     );
   });
 
@@ -340,8 +340,164 @@ require(['vs/editor/editor.main'], () => {
   setupAutoClose(eds.xml);
   setupAutoClose(eds.xslt);
 
+  // ── Custom context menu actions ───────────────────────────────────────────
 
-  // Debounced live validation — runs 800ms after the user stops typing
+  // Helper: toggle XML comment on selected lines
+  function _toggleXmlComment(editor) {
+    const model = editor.getModel();
+    const sel   = editor.getSelection();
+    const startLine = sel.startLineNumber;
+    const endLine   = sel.endLineNumber;
+
+    // Collect lines in selection
+    const lines = [];
+    for (let i = startLine; i <= endLine; i++) lines.push(model.getLineContent(i));
+
+    // Detect if ALL non-empty lines are already commented
+    const nonEmpty   = lines.filter(l => l.trim());
+    const allCommented = nonEmpty.length > 0 &&
+      nonEmpty.every(l => l.trim().startsWith('<!--') && l.trim().endsWith('-->'));
+
+    const edits = [];
+    if (allCommented) {
+      // Uncomment: strip <!-- and -->
+      for (let i = startLine; i <= endLine; i++) {
+        const line = model.getLineContent(i);
+        const stripped = line.replace(/^(\s*)<!--\s?/, '$1').replace(/\s?-->(\s*)$/, '$1');
+        edits.push({ range: new monaco.Range(i, 1, i, line.length + 1), text: stripped });
+      }
+    } else {
+      // Comment: wrap each non-empty line
+      for (let i = startLine; i <= endLine; i++) {
+        const line = model.getLineContent(i);
+        if (!line.trim()) continue;
+        edits.push({ range: new monaco.Range(i, 1, i, line.length + 1), text: `<!-- ${line} -->` });
+      }
+    }
+    if (edits.length) editor.executeEdits('toggle-comment', edits);
+  }
+
+  // ── XML editor actions ──
+  eds.xml.addAction({
+    id:    'xd-format-xml',
+    label: 'Format XML',
+    contextMenuGroupId: '1_modification',
+    contextMenuOrder: 10,
+    run(ed) {
+      const src = ed.getValue();
+      if (!src.trim()) return;
+      const fmt = prettyXML(src);
+      ed.executeEdits('format-xml', [{
+        range: ed.getModel().getFullModelRange(), text: fmt
+      }]);
+      clog('XML formatted ✓', 'success');
+    }
+  });
+
+  eds.xml.addAction({
+    id:    'xd-minify-xml',
+    label: 'Minify XML',
+    contextMenuGroupId: '1_modification',
+    contextMenuOrder: 11,
+    run(ed) {
+      const src = ed.getValue().trim();
+      if (!src) return;
+      const minified = src.replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ');
+      ed.executeEdits('minify-xml', [{
+        range: ed.getModel().getFullModelRange(), text: minified
+      }]);
+      clog('XML minified ✓', 'success');
+    }
+  });
+
+  eds.xml.addAction({
+    id:    'xd-comment-xml',
+    label: 'Comment / Uncomment Lines',
+    contextMenuGroupId: '1_modification',
+    contextMenuOrder: 12,
+    run(ed) { _toggleXmlComment(ed); }
+  });
+
+  // ── Shared clipboard helper for XPath copy actions ──
+  function _copyXPathToClipboard(xpath, label) {
+    const onSuccess = () => clog(`ƒx  ${label}: ${xpath}`, 'success');
+    const onFail = () => {
+      const ta = document.createElement('textarea');
+      ta.value = xpath; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      const ok = (() => { try { return document.execCommand('copy'); } catch(_) { return false; } })();
+      document.body.removeChild(ta);
+      ok ? onSuccess() : clog('Clipboard access denied', 'error');
+    };
+    if (window.navigator?.clipboard?.writeText) navigator.clipboard.writeText(xpath).then(onSuccess, onFail);
+    else onFail();
+  }
+
+  // ── Mode-aware handler: XSLT mode → log + copy only; XPath mode → set bar + run ──
+  function _handleCopyXPath(xpath, label) {
+    if (!xpathEnabled) {
+      // XSLT mode — just log and copy, don't switch mode or run
+      clog(`ƒx  ${label}: ${xpath}`, 'info');
+      _copyXPathToClipboard(xpath, label);
+    } else {
+      // XPath mode — populate bar, run, and copy
+      const input = document.getElementById('xpathInput');
+      if (input) { input.value = xpath; scheduleSave(); }
+      if (typeof runXPath === 'function') runXPath();
+      _copyXPathToClipboard(xpath, label);
+    }
+  }
+
+  eds.xml.addAction({
+    id:    'xd-copy-xpath-indexed',
+    label: 'Copy XPath — Exact  (e.g. /Orders/Order[2]/Amount)',
+    contextMenuGroupId: '1_modification',
+    contextMenuOrder: 21,
+    run(ed) {
+      const result = typeof getXPathAtCursor === 'function' ? getXPathAtCursor(ed) : null;
+      if (!result) { clog('Could not determine XPath — place cursor inside an element', 'warn'); return; }
+      _handleCopyXPath(result.indexed, 'Exact XPath copied');
+    }
+  });
+
+  eds.xml.addAction({
+    id:    'xd-copy-xpath-general',
+    label: 'Copy XPath — General  (e.g. /Orders/Order/Amount)',
+    contextMenuGroupId: '1_modification',
+    contextMenuOrder: 22,
+    run(ed) {
+      const result = typeof getXPathAtCursor === 'function' ? getXPathAtCursor(ed) : null;
+      if (!result) { clog('Could not determine XPath — place cursor inside an element', 'warn'); return; }
+      _handleCopyXPath(result.general, 'General XPath copied');
+    }
+  });
+
+  // ── XSLT editor actions ──
+  eds.xslt.addAction({
+    id:    'xd-format-xslt',
+    label: 'Format XML',
+    contextMenuGroupId: '1_modification',
+    contextMenuOrder: 10,
+    run(ed) {
+      const src = ed.getValue();
+      if (!src.trim()) return;
+      const fmt = prettyXML(src);
+      ed.executeEdits('format-xml', [{
+        range: ed.getModel().getFullModelRange(), text: fmt
+      }]);
+      clog('XSLT formatted ✓', 'success');
+    }
+  });
+
+  eds.xslt.addAction({
+    id:    'xd-comment-xslt',
+    label: 'Comment / Uncomment Lines',
+    contextMenuGroupId: '1_modification',
+    contextMenuOrder: 11,
+    run(ed) { _toggleXmlComment(ed); }
+  });
+
+
 
   function runXsltValidation() {
     const src = eds.xslt.getValue().trim();
@@ -392,8 +548,9 @@ require(['vs/editor/editor.main'], () => {
     if (_suppressNextValidation) { _suppressNextValidation = false; return; }
     monaco.editor.setModelMarkers(eds.xml.getModel(), 'xsltforge', []);
     if (xmlDecorations) { xmlDecorations.clear(); xmlDecorations = null; }
-    // Clear stale XPath highlights whenever the source XML is edited
+    // Clear stale XPath highlights and hide results panel whenever source XML is edited
     if (typeof clearXPathHighlights === 'function') clearXPathHighlights();
+    document.getElementById('xpathResultsPanel')?.classList.remove('visible');
     clearTimeout(xmlDebounce);
     xmlDebounce = setTimeout(runXmlValidation, 800);
   });
@@ -436,6 +593,17 @@ require(['vs/editor/editor.main'], () => {
           const xpathInput = document.getElementById('xpathInput');
           if (xpathInput) xpathInput.value = _savedSession.xpathExpr;
         }
+        // Restore XPath toggle state (default off if not in session)
+        xpathEnabled = _savedSession.xpathEnabled === true;
+        // Restore pre-xpath colCenter state so toggling back to XSLT restores it correctly
+        if (typeof _xpathPreColCenterCollapsed !== 'undefined') {
+          _xpathPreColCenterCollapsed = _savedSession.centerCollapsed ?? false;
+        }
+        // In XSLT mode, restore manually-collapsed colCenter if saved
+        if (!xpathEnabled && _savedSession.centerCollapsed) {
+          document.getElementById('colCenter')?.classList.add('collapsed');
+        }
+        if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
         // Relay Monaco after potential column changes
         setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 260);
 
@@ -447,9 +615,11 @@ require(['vs/editor/editor.main'], () => {
               return `${Math.round(diff/3600)}h ago`;
             })()
           : '';
-        clog(`Session restored${ago ? ' · saved ' + ago : ''} ✓`, 'success');
+        clog(`Session restored${ago ? ' · saved ' + ago : ''} · ${xpathEnabled ? 'XPath' : 'XSLT'} mode ✓`, 'success');
       } else {
         clog('Identity Transform loaded. Use Examples menu to load CPI scenarios.', 'info');
+        // Apply default XPath state (off) on fresh load
+        if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
       }
 
       renderKV('headers');
