@@ -2,42 +2,62 @@
 //  CPI HEADER / PROPERTY SIMULATION
 // ════════════════════════════════════════════
 
-// 1. Extract static string values from cpi:setHeader / cpi:setProperty calls
-function extractCPICalls(xslt) {
-  const result = { headers: {}, properties: {} };
-  const hRe = /cpi:setHeader\s*\(\s*\$\w+\s*,\s*'([^']+)'\s*,\s*'([^']*)'\s*\)/g;
-  const pRe = /cpi:setProperty\s*\(\s*\$\w+\s*,\s*'([^']+)'\s*,\s*'([^']*)'\s*\)/g;
-  let m;
-  while ((m = hRe.exec(xslt)) !== null) result.headers[m[1]]    = m[2];
-  while ((m = pRe.exec(xslt)) !== null) result.properties[m[1]] = m[2];
-  return result;
-}
+// Rewrite cpi:setHeader / cpi:setProperty calls to use the js: namespace
+// (http://saxonica.com/ns/globalJS) which Saxon-JS maps to window.xxx().
+// This means Saxon evaluates ALL arguments — including dynamic ones like
+// concat('REF-', Id) or $someParam — and calls our JS interceptor with
+// the real computed values. No more regex extraction, no more — none —.
+//
+// Rewrites performed:
+//   xmlns:cpi="..."  →  xmlns:js="http://saxonica.com/ns/globalJS"
+//                        (only if js: not already declared)
+//   cpi:setHeader(   →  js:cpiSetHeader(
+//   cpi:setProperty( →  js:cpiSetProperty(
+//   'cpi' removed from exclude-result-prefixes
+//   'js'  added  to  exclude-result-prefixes (avoids leaking to output)
 
-// 2. Remove the cpi: namespace declaration and rewrite cpi:setXxx calls
-//    so Saxon-JS never sees the unknown function.
-//    Strategy: remove xmlns:cpi="..." and replace the full xsl:value-of
-//    element with a harmless empty string select.
-function stripCPICalls(xslt) {
-  const linesBefore = xslt.split('\n').length;
-  // 1. Remove xmlns:cpi namespace declaration (double or single quoted)
-  xslt = xslt.replace(/\s*xmlns:cpi\s*=\s*(?:"[^"]*"|'[^']*')/g, '');
-  // 2. Remove 'cpi' from exclude-result-prefixes — Saxon-JS errors on undeclared prefixes
-  //    even in exclude-result-prefixes, so this must be cleaned up after step 1 removes xmlns:cpi
-  xslt = xslt.replace(/(exclude-result-prefixes\s*=\s*")([^"]*)"/g, (_, attr, val) => {
-    const cleaned = val.split(/\s+/).filter(p => p !== 'cpi').join(' ');
-    return attr + cleaned + '"';
+function rewriteCPICalls(xslt) {
+  const JS_NS = 'http://saxonica.com/ns/globalJS';
+
+  // 1. Replace xmlns:cpi="..." with xmlns:js="..." (if js not already present)
+  const hasJsNs = /xmlns:js\s*=/.test(xslt);
+  xslt = xslt.replace(/\s*xmlns:cpi\s*=\s*(?:"[^"]*"|'[^']*')/g,
+    hasJsNs ? '' : ` xmlns:js="${JS_NS}"`);
+
+  // 2. Remove 'cpi' from exclude-result-prefixes (js exclusion handled by ensureJsExcluded)
+  xslt = xslt.replace(/(exclude-result-prefixes\s*=\s*)(["'])([^"']*)\2/g, (_, attr, q, val) => {
+    const parts = val.split(/\s+/).filter(p => p !== 'cpi');
+    return attr + q + parts.join(' ') + q;
   });
-  // 3. Remove self-closing: <xsl:value-of select="cpi:setXxx(...)"/>
-  //    Include leading whitespace and trailing newline so the entire line is removed,
-  //    keeping the line count accurate for error-line offset correction.
-  xslt = xslt.replace(/[ \t]*<xsl:value-of(?:\s+(?:"[^"]*"|'[^']*'|[^<>])*?)?\s+select\s*=\s*"cpi:set[^"]*"(?:\s+(?:"[^"]*"|'[^']*'|[^<>])*?)?\/>[  \t]*\r?\n/g, '');
-  // 4. Remove open+close form: <xsl:value-of select="cpi:setXxx(...)"></xsl:value-of>
-  xslt = xslt.replace(/[ \t]*<xsl:value-of(?:\s+(?:"[^"]*"|'[^']*'|[^<>])*?)?\s+select\s*=\s*"cpi:set[^"]*"(?:\s+(?:"[^"]*"|'[^']*'|[^<>])*?)?>[^<]*<\/xsl:value-of>[  \t]*\r?\n/g, '');
-  const linesAfter = xslt.split('\n').length;
-  return { stripped: xslt, offset: linesBefore - linesAfter };
+
+  // 3. Rewrite all cpi: function calls → js: equivalents
+  xslt = xslt.replace(/cpi:setHeader\s*\(/g,    'js:cpiSetHeader(');
+  xslt = xslt.replace(/cpi:setProperty\s*\(/g,  'js:cpiSetProperty(');
+  xslt = xslt.replace(/cpi:getHeader\s*\(/g,    'js:cpiGetHeader(');
+  xslt = xslt.replace(/cpi:getProperty\s*\(/g,  'js:cpiGetProperty(');
+
+  return { rewritten: xslt };
 }
 
-// 3. Build the stylesheet-params map fragment for XPath transform()
+// Ensure the js: namespace is always in exclude-result-prefixes so it never
+// leaks into output — mirrors CPI runtime behaviour where extension namespaces
+// are never serialized regardless of what the developer declared.
+function ensureJsExcluded(xslt) {
+  if (!/xmlns:js\s*=/.test(xslt)) return xslt; // no js: namespace — nothing to do
+
+  if (/(exclude-result-prefixes\s*=)/.test(xslt)) {
+    // Already has the attribute — make sure 'js' is in it
+    return xslt.replace(/(exclude-result-prefixes\s*=\s*)(["'])([^"']*)\2/g, (_, attr, q, val) => {
+      const parts = val.split(/\s+/).filter(p => p !== 'js');
+      parts.push('js');
+      return attr + q + parts.filter(Boolean).join(' ') + q;
+    });
+  } else {
+    // No attribute at all — inject it on the stylesheet element (handles both xsl:stylesheet and xsl:transform)
+    return xslt.replace(/(<xsl:(?:stylesheet|transform)\b[^>]*?)(\s*>)/, '$1 exclude-result-prefixes="js"$2');
+  }
+}
+
 // Valid XML NCName: must start with letter or underscore, then letters/digits/.-_
 function isValidNCName(name) {
   return /^[A-Za-z_][\w.\-]*$/.test(name);
@@ -172,22 +192,56 @@ function runTransform() {
     clog(`Starting XSLT transform — XML ${xmlSrc.length} chars · XSLT ${xsltSrc.length} chars`, 'info');
   window.goatcounter?.count({ path: 'run-xslt', title: 'Run XSLT' });
 
-    // Extract cpi: calls BEFORE stripping so we can show them in output panels
-    const hasCPI   = /cpi:set(?:Header|Property)/.test(xsltSrc);
-    const cpiCalls = hasCPI ? extractCPICalls(xsltSrc) : { headers: {}, properties: {} };
-    let cpiLineOffset = 0;
+    // ── CPI extension call handling ───────────────────────────────────────────
+    // Rewrite cpi:setHeader/setProperty → js:cpiSetHeader/cpiSetProperty so
+    // Saxon evaluates all arguments (including dynamic ones) and calls our
+    // JS interceptor functions on window. Results collected into cpiCaptured.
+    const hasCPI = /cpi:(?:set|get)(?:Header|Property)/.test(xsltSrc);
+    const cpiCaptured = { headers: {}, properties: {} };
+    let _prevCpiSetHeader, _prevCpiSetProperty, _prevCpiGetHeader, _prevCpiGetProperty;
+
     if (hasCPI) {
-      const { stripped, offset } = stripCPICalls(xsltSrc);
-      xsltSrc       = stripped;
-      cpiLineOffset = offset;
-      const _hc = Object.keys(cpiCalls.headers).length;
-      const _pc = Object.keys(cpiCalls.properties).length;
-      const _parts = ['CPI extension calls detected'];
-      if (_hc) _parts.push(`${_hc} header${_hc > 1 ? 's' : ''}`);
-      if (_pc) _parts.push(`${_pc} propert${_pc > 1 ? 'ies' : 'y'}`);
-      if (!_hc && !_pc) _parts.push('dynamic values only — output panels will show — none —');
-      clog(_parts.join(' — '), 'info');
+      _prevCpiSetHeader   = window.cpiSetHeader;
+      _prevCpiSetProperty = window.cpiSetProperty;
+      _prevCpiGetHeader   = window.cpiGetHeader;
+      _prevCpiGetProperty = window.cpiGetProperty;
+
+      const _cpiStrVal = v => {
+        if (v == null) return '';
+        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
+        if (Array.isArray(v)) return v.map(_cpiStrVal).join('');
+        if (v instanceof Node) return v.textContent ?? '';
+        if (typeof v === 'object' && 'textContent' in v) return v.textContent ?? '';
+        return String(v);
+      };
+
+      // setHeader / setProperty — capture computed values into cpiCaptured
+      window.cpiSetHeader   = (_exchange, name, value) => { cpiCaptured.headers[_cpiStrVal(name)]    = _cpiStrVal(value); return ''; };
+      window.cpiSetProperty = (_exchange, name, value) => { cpiCaptured.properties[_cpiStrVal(name)] = _cpiStrVal(value); return ''; };
+
+      // getHeader / getProperty — read from the input Headers/Properties panels (kvData)
+      window.cpiGetHeader   = (_exchange, name) => {
+        const key = _cpiStrVal(name).trim();
+        const row = kvData.headers.find(r => r.name === key);
+        const val = row?.value ?? '';
+        if (!row) clog(`cpi:getHeader — '${key}' not found in Headers panel, returning empty string`, 'warn');
+        return val;
+      };
+      window.cpiGetProperty = (_exchange, name) => {
+        const key = _cpiStrVal(name).trim();
+        const row = kvData.properties.find(r => r.name === key);
+        const val = row?.value ?? '';
+        if (!row) clog(`cpi:getProperty — '${key}' not found in Properties panel, returning empty string`, 'warn');
+        return val;
+      };
+
+      const { rewritten } = rewriteCPICalls(xsltSrc);
+      xsltSrc = rewritten;
+      clog('CPI extension calls detected — rewriting to js: namespace for full dynamic evaluation', 'info');
     }
+
+    // Always ensure js: namespace is excluded from output — mirrors CPI runtime behaviour
+    xsltSrc = ensureJsExcluded(xsltSrc);
 
     // Log which params are being passed
     const namedParams = [...kvData.headers, ...kvData.properties].filter(r => r.name.trim());
@@ -235,13 +289,25 @@ function runTransform() {
       eds.out.setValue(output.trimStart().startsWith('<') ? prettyXML(output) : output);
       eds.out.updateOptions({ readOnly: true });
 
-      // Show output panels: CPI-set values take priority, then pass-through input headers + properties
-      const outHdrs  = { ...cpiCalls.headers };
-      const outProps = { ...cpiCalls.properties };
+      // Show output panels: CPI-captured values (dynamic + static) take priority,
+      // then pass-through input headers + properties
+      const outHdrs  = { ...cpiCaptured.headers };
+      const outProps = { ...cpiCaptured.properties };
       kvData.headers.filter(r => r.name.trim() && !(r.name in outHdrs))
                     .forEach(r => { outHdrs[r.name] = r.value; });
       kvData.properties.filter(r => r.name.trim() && !(r.name in outProps))
                        .forEach(r => { outProps[r.name] = r.value; });
+
+      // Log captured CPI values
+      if (hasCPI) {
+        const _hc = Object.keys(cpiCaptured.headers).length;
+        const _pc = Object.keys(cpiCaptured.properties).length;
+        const _parts = [];
+        if (_hc) _parts.push(`${_hc} header${_hc > 1 ? 's' : ''} captured`);
+        if (_pc) _parts.push(`${_pc} propert${_pc > 1 ? 'ies' : 'y'} captured`);
+        if (_parts.length) clog(`CPI — ${_parts.join(' · ')} ✓`, 'success');
+      }
+
       renderOutputKV(outHdrs, outProps);
 
       clog(`Transform complete in ${elapsed} ms ✓`, 'success');
@@ -276,8 +342,8 @@ function runTransform() {
         const originalXslt = eds.xslt?.getValue() ?? '';
         const saxonLine    = parseSaxonErrorLine(fullMsg);
         const errLine =
-          findXPathExpressionLine(fullMsg, originalXslt, saxonLine, cpiLineOffset) ||
-          (saxonLine !== null ? saxonLine + cpiLineOffset : null);
+          findXPathExpressionLine(fullMsg, originalXslt, saxonLine, 0) ||
+          (saxonLine !== null ? saxonLine : null);
         if (errLine) {
           xsltDecorations = markErrorLine(eds.xslt, errLine, msg, xsltDecorations);
           clog(`↳ Error at line ${errLine} (highlighted in XSLT editor)`, 'error');
@@ -288,6 +354,13 @@ function runTransform() {
     } finally {
       // Always restore console.log — even if Saxon throws
       console.log = _origConsoleLog;
+      // Restore window CPI interceptors to their previous state
+      if (hasCPI) {
+        _prevCpiSetHeader   !== undefined ? (window.cpiSetHeader   = _prevCpiSetHeader)   : delete window.cpiSetHeader;
+        _prevCpiSetProperty !== undefined ? (window.cpiSetProperty = _prevCpiSetProperty) : delete window.cpiSetProperty;
+        _prevCpiGetHeader   !== undefined ? (window.cpiGetHeader   = _prevCpiGetHeader)   : delete window.cpiGetHeader;
+        _prevCpiGetProperty !== undefined ? (window.cpiGetProperty = _prevCpiGetProperty) : delete window.cpiGetProperty;
+      }
     }
 
   } finally {
