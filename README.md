@@ -69,7 +69,8 @@ A segmented **XSLT | ƒx XPath** control in the header switches between modes. T
 
 ### SAP CPI Simulation
 - **Headers and Properties** — name/value pairs injected as `xsl:param` values as the CPI runtime does
-- **`cpi:setHeader` / `cpi:setProperty`** — static values extracted and shown in Output panels; calls stripped before Saxon runs
+- **`cpi:setHeader` / `cpi:setProperty`** — fully evaluated using Saxon-JS's `js:` namespace bridge; static strings, variables, `concat()`, XPath expressions all work correctly; values shown in Output panels
+- **`cpi:getHeader` / `cpi:getProperty`** — reads from the Headers / Properties panels; returns the entered value, empty string if not found (warns in console)
 - **`$exchange` param** — always injected automatically
 - **`xsl:message` in console** — amber entries in correct execution order
 - **`terminate="yes"` as intentional halt** — logged as warning, not error
@@ -95,7 +96,7 @@ Everything auto-saved to `localStorage` 800ms after you stop typing:
 |---|---|
 | `xdebugx-session-v1` | XML, XSLT, headers, properties, column states, XPath expression, current mode |
 | `xdebugx-xpath-history` | Last 20 XPath expressions (persists across reloads) |
-| `xforge-theme` | Light / dark preference |
+| `xdebugx-theme` | Light / dark preference |
 
 Restore log: `Session restored · saved 2m ago · XPath mode ✓`
 
@@ -118,15 +119,34 @@ Add `SAPClient` and `TargetSystem` to the Headers panel with your test values.
 
 ### How CPI extension calls are handled
 
+XSLTDebugX rewrites `cpi:` calls to Saxon-JS's `js:` namespace before running the transform. Saxon evaluates all arguments fully — dynamic expressions, variables, XPath paths — and calls JavaScript interceptors with the real computed values.
+
+**`cpi:setHeader` / `cpi:setProperty`** — captured and shown in Output Headers / Output Properties panels:
+
 ```xslt
-<xsl:value-of select="cpi:setHeader($exchange, 'Content-Type', 'application/xml')"/>
-<xsl:value-of select="cpi:setProperty($exchange, 'OrderStatus', 'APPROVED')"/>
+<!-- All of these work and show correct values in Output panels -->
+<xsl:value-of select="cpi:setHeader($exchange, 'ContentType', 'application/xml')"/>
+<xsl:value-of select="cpi:setHeader($exchange, 'OrderRef', concat('REF-', Id))"/>
+<xsl:value-of select="cpi:setHeader($exchange, 'Customer', //Header/CustomerName)"/>
+<xsl:value-of select="cpi:setHeader($exchange, 'Client', $SAPClient)"/>
+<xsl:value-of select="cpi:setProperty($exchange, 'Status', if (Amount gt 1000) then 'HIGH' else 'LOW')"/>
 ```
 
-1. **Extract** — static string values captured and shown in Output panels
-2. **Strip** — `xmlns:cpi` and all matching `xsl:value-of` elements removed before Saxon runs
+**`cpi:getHeader` / `cpi:getProperty`** — reads from the Headers / Properties panels:
 
-Dynamic values (`concat(...)`, variables) show `— none —` but the stylesheet logic executes correctly.
+```xslt
+<xsl:variable name="client" select="cpi:getHeader($exchange, 'SAPClient')"/>
+<xsl:variable name="target" select="cpi:getProperty($exchange, 'TargetSystem')"/>
+```
+
+If the name is not found in the panel, returns empty string and warns in console. Names are case-sensitive and whitespace-trimmed.
+
+**Rewrite steps before Saxon runs:**
+1. `xmlns:cpi="..."` → `xmlns:js="http://saxonica.com/ns/globalJS"`
+2. `cpi` removed from `exclude-result-prefixes`; `js` added (or injected if missing)
+3. `cpi:setHeader(` → `js:cpiSetHeader(`, `cpi:getHeader(` → `js:cpiGetHeader(`, etc.
+
+The `js:` namespace is always excluded from serialized output, mirroring CPI runtime behaviour.
 
 ### Namespace declarations for CPI stylesheets
 
@@ -165,7 +185,7 @@ Both populate the XQuery bar and run immediately. In XSLT mode, same options cop
 
 ### Use online
 
-Open the GitHub Pages URL. No account, no install.
+**[https://xsltdebugx.pages.dev](https://xsltdebugx.pages.dev)** — open in any browser. No account, no install.
 
 ### Run locally
 
@@ -191,11 +211,15 @@ No build step. No `npm install`. No server required.
 
 ## Deployment
 
-### GitHub Pages
+Hosted on **Cloudflare Pages** at [xsltdebugx.pages.dev](https://xsltdebugx.pages.dev). Every push to the `main` branch auto-deploys — no manual steps needed.
 
-1. Push to GitHub
-2. **Settings → Pages → Source** → branch `main`, folder `/`
-3. Live at `https://your-org.github.io/XSLTDebugX/`
+### Cloudflare Pages setup
+
+1. Connect your GitHub repo to Cloudflare Pages
+2. Framework preset: **None** (static site)
+3. Build command: leave empty
+4. Output directory: `/` (root)
+5. Save — Cloudflare deploys on every push to `main`
 
 ### CDN dependencies
 
@@ -205,7 +229,7 @@ No build step. No `npm install`. No server required.
 | Pako | `cdnjs.cloudflare.com/ajax/libs/pako/2.1.0` |
 | JetBrains Mono | `fonts.googleapis.com` |
 
-Saxon-JS is bundled locally in `lib/SaxonJS2.js`.
+Saxon-JS is bundled locally in `lib/SaxonJS2.js` — no CDN dependency.
 
 ---
 
@@ -253,6 +277,10 @@ pako → Monaco loader → SaxonJS2.js → state.js → validate.js → panes.js
 
 `CATEGORIES` in `examples-data.js` is the single source of truth for category labels, accent colours, and sidebar order. `renderExSidebar()` in `modal.js` reads it at runtime — adding a new category requires only one line in `CATEGORIES` plus examples with the matching `cat` value.
 
+### Monaco editor themes
+
+Two custom themes are registered at startup: `xdebugx` (dark) and `xdebugx-light` (light). The active theme is stored in `localStorage` under `xdebugx-theme`.
+
 ### XPath expression history
 
 Stored in `_xpathHistory[]` (most-recent-first, max 20), persisted to `localStorage` under `xdebugx-xpath-history`. `_xpathHistoryCursor` tracks position during browsing; `-1` means viewing the current draft saved in `_xpathDraftExpr`. Deduplicates on push.
@@ -260,6 +288,14 @@ Stored in `_xpathHistory[]` (most-recent-first, max 20), persisted to `localStor
 ### XPath namespace bindings
 
 `SaxonJS.XPath.evaluate` is called with a `namespaceContext` providing `xs`, `fn`, `math`, `map`, and `array` prefixes — so expressions like `xs:date(...)`, `fn:concat(...)`, or `math:sqrt(...)` work without any namespace declaration in the XML input.
+
+### CPI extension function bridge
+
+`rewriteCPICalls()` in `transform.js` rewrites the XSLT source before Saxon runs — swapping `xmlns:cpi` for `xmlns:js` (`http://saxonica.com/ns/globalJS`) and renaming all `cpi:setHeader(`, `cpi:getHeader(`, `cpi:setProperty(`, `cpi:getProperty(` calls to their `js:` equivalents. Saxon-JS maps `js:funcName(args)` directly to `window.funcName(args)`, so Saxon fully evaluates all arguments before calling the JS interceptor — dynamic expressions, variables, and XPath paths all resolve correctly.
+
+`ensureJsExcluded()` always runs after any XSLT processing to guarantee `js` is present in `exclude-result-prefixes`, preventing the `xmlns:js` declaration from leaking into serialized output. This mirrors CPI runtime behaviour where extension namespaces are never visible in the output XML.
+
+Interceptors are registered on `window` before Saxon runs and restored (or deleted) in a `finally` block, even if Saxon throws.
 
 ### Share URL encoding
 
@@ -327,10 +363,12 @@ Sidebar button, count badge, grid section label, and card tag all appear automat
 
 | Limitation | Detail |
 |---|---|
-| CPI line number offset | `stripCPICalls` removes lines before Saxon sees the XSLT. Error glyphs attempt a best-effort line match. |
-| Dynamic CPI values | `cpi:setHeader`/`cpi:setProperty` with variables or `concat()` show `— none —` in output panels. |
-| XPath colours after theme switch | Colorised results don't update on theme change — re-run the expression to refresh. |
-| Share is XSLT only | XPath expressions and XPath mode are not included in share URLs. |
+| Unsupported `cpi:` functions | `cpi:getHeaders()`, `cpi:getProperties()`, `cpi:throwFault()`, `cpi:getBody()`, `cpi:setBody()` are not intercepted — Saxon will throw a namespace error if used |
+| `$exchange` not a real object | Injected as a dummy string `'exchange'` — only works as the first argument to `cpi:set*/get*` |
+| Runtime adapter headers | `CamelFileName`, `CamelHttpResponseCode`, adapter-specific headers must be added manually to the Headers panel |
+| Multi-step iFlow chaining | Single transform only — output of one step cannot feed the next automatically |
+| XPath colours after theme switch | Colorised results don't update on theme change — re-run the expression to refresh |
+| Share is XSLT only | XPath expressions and XPath mode are not included in share URLs |
 
 ---
 
