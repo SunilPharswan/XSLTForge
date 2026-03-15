@@ -187,11 +187,11 @@ require(['vs/editor/editor.main'], () => {
     { ...shared, language: 'xml', value: '', readOnly: true, renderValidationDecorations: 'off' }
   );
 
-  // Ctrl/Cmd+Enter → run
+  // Ctrl/Cmd+Enter → run XPath in XPath mode, run transform in XSLT mode
   [eds.xml, eds.xslt].forEach(ed => {
     ed.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
-      runTransform
+      () => { if (xpathEnabled) runXPath(); else runTransform(); }
     );
   });
 
@@ -418,6 +418,36 @@ require(['vs/editor/editor.main'], () => {
     run(ed) { _toggleXmlComment(ed); }
   });
 
+  // ── Shared clipboard helper for XPath copy actions ──
+  function _copyXPathToClipboard(xpath, label) {
+    const onSuccess = () => clog(`ƒx  ${label}: ${xpath}`, 'success');
+    const onFail = () => {
+      const ta = document.createElement('textarea');
+      ta.value = xpath; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      const ok = (() => { try { return document.execCommand('copy'); } catch(_) { return false; } })();
+      document.body.removeChild(ta);
+      ok ? onSuccess() : clog('Clipboard access denied', 'error');
+    };
+    if (window.navigator?.clipboard?.writeText) navigator.clipboard.writeText(xpath).then(onSuccess, onFail);
+    else onFail();
+  }
+
+  // ── Mode-aware handler: XSLT mode → log + copy only; XPath mode → set bar + run ──
+  function _handleCopyXPath(xpath, label) {
+    if (!xpathEnabled) {
+      // XSLT mode — just log and copy, don't switch mode or run
+      clog(`ƒx  ${label}: ${xpath}`, 'info');
+      _copyXPathToClipboard(xpath, label);
+    } else {
+      // XPath mode — populate bar, run, and copy
+      const input = document.getElementById('xpathInput');
+      if (input) { input.value = xpath; scheduleSave(); }
+      if (typeof runXPath === 'function') runXPath();
+      _copyXPathToClipboard(xpath, label);
+    }
+  }
+
   eds.xml.addAction({
     id:    'xd-copy-xpath-indexed',
     label: 'Copy XPath — Exact  (e.g. /Orders/Order[2]/Amount)',
@@ -426,20 +456,7 @@ require(['vs/editor/editor.main'], () => {
     run(ed) {
       const result = typeof getXPathAtCursor === 'function' ? getXPathAtCursor(ed) : null;
       if (!result) { clog('Could not determine XPath — place cursor inside an element', 'warn'); return; }
-      const xpath = result.indexed;
-      const input = document.getElementById('xpathInput');
-      if (input) { input.value = xpath; scheduleSave(); if (typeof runXPath === 'function') runXPath(); }
-      const onSuccess = () => clog(`XPath (exact) copied: ${xpath}`, 'success');
-      const onFail = () => {
-        const ta = document.createElement('textarea');
-        ta.value = xpath; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        const ok = (() => { try { return document.execCommand('copy'); } catch(_) { return false; } })();
-        document.body.removeChild(ta);
-        ok ? onSuccess() : clog('Clipboard access denied', 'error');
-      };
-      if (window.navigator?.clipboard?.writeText) navigator.clipboard.writeText(xpath).then(onSuccess, onFail);
-      else onFail();
+      _handleCopyXPath(result.indexed, 'Exact XPath copied');
     }
   });
 
@@ -451,20 +468,7 @@ require(['vs/editor/editor.main'], () => {
     run(ed) {
       const result = typeof getXPathAtCursor === 'function' ? getXPathAtCursor(ed) : null;
       if (!result) { clog('Could not determine XPath — place cursor inside an element', 'warn'); return; }
-      const xpath = result.general;
-      const input = document.getElementById('xpathInput');
-      if (input) { input.value = xpath; scheduleSave(); if (typeof runXPath === 'function') runXPath(); }
-      const onSuccess = () => clog(`XPath (general) copied: ${xpath}`, 'success');
-      const onFail = () => {
-        const ta = document.createElement('textarea');
-        ta.value = xpath; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        const ok = (() => { try { return document.execCommand('copy'); } catch(_) { return false; } })();
-        document.body.removeChild(ta);
-        ok ? onSuccess() : clog('Clipboard access denied', 'error');
-      };
-      if (window.navigator?.clipboard?.writeText) navigator.clipboard.writeText(xpath).then(onSuccess, onFail);
-      else onFail();
+      _handleCopyXPath(result.general, 'General XPath copied');
     }
   });
 
@@ -544,8 +548,9 @@ require(['vs/editor/editor.main'], () => {
     if (_suppressNextValidation) { _suppressNextValidation = false; return; }
     monaco.editor.setModelMarkers(eds.xml.getModel(), 'xsltforge', []);
     if (xmlDecorations) { xmlDecorations.clear(); xmlDecorations = null; }
-    // Clear stale XPath highlights whenever the source XML is edited
+    // Clear stale XPath highlights and hide results panel whenever source XML is edited
     if (typeof clearXPathHighlights === 'function') clearXPathHighlights();
+    document.getElementById('xpathResultsPanel')?.classList.remove('visible');
     clearTimeout(xmlDebounce);
     xmlDebounce = setTimeout(runXmlValidation, 800);
   });
@@ -588,6 +593,9 @@ require(['vs/editor/editor.main'], () => {
           const xpathInput = document.getElementById('xpathInput');
           if (xpathInput) xpathInput.value = _savedSession.xpathExpr;
         }
+        // Restore XPath toggle state (default off if not in session)
+        xpathEnabled = _savedSession.xpathEnabled === true;
+        if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
         // Relay Monaco after potential column changes
         setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 260);
 
@@ -602,6 +610,8 @@ require(['vs/editor/editor.main'], () => {
         clog(`Session restored${ago ? ' · saved ' + ago : ''} ✓`, 'success');
       } else {
         clog('Identity Transform loaded. Use Examples menu to load CPI scenarios.', 'info');
+        // Apply default XPath state (off) on fresh load
+        if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
       }
 
       renderKV('headers');

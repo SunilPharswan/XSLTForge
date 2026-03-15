@@ -145,8 +145,13 @@ function runTransform() {
   const btn = document.getElementById('runBtn');
   function resetBtn() {
     btn.disabled = false;
-    btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13">
-      <path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run Transform <span class="kbd">⌘↵</span>`;
+    if (typeof xpathEnabled !== 'undefined' && xpathEnabled) {
+      btn.onclick = runXPath;
+      btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XPath <span class="kbd">⌘↵</span>`;
+    } else {
+      btn.onclick = runTransform;
+      btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XSLT <span class="kbd">⌘↵</span>`;
+    }
   }
 
   btn.disabled = true;

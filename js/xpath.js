@@ -8,6 +8,102 @@
 
 // Decoration collection for XPath highlights in the XML editor
 let xpathDecorations = null;
+let xpathEnabled = false; // off by default — user must explicitly enable
+let _xpathPreColCenterCollapsed = false; // colCenter state before XPath was enabled
+
+// ── Apply XPath enabled/disabled state to DOM (no logging, no side effects) ──
+function _applyXPathToggleState() {
+  const btn        = document.getElementById('xpathToggle');
+  const bar        = document.getElementById('xpathBar');
+  const colCenter  = document.getElementById('colCenter');
+  const hdrPanel   = document.getElementById('hdrPanel');
+  const propPanel  = document.getElementById('propPanel');
+  const outSection = document.getElementById('outputSection');
+  const console_   = document.getElementById('consolePanel');
+  const workspace  = document.querySelector('.workspace');
+  const shareBtn   = document.getElementById('shareBtn');
+  const runBtn     = document.getElementById('runBtn');
+  const consoleTtl = document.querySelector('.console-title');
+
+  if (btn) btn.classList.toggle('active', xpathEnabled);
+  if (bar) bar.style.display = xpathEnabled ? '' : 'none';
+
+  // When enabling: always collapse colCenter. When disabling: restore to pre-xpath state.
+  if (colCenter) {
+    if (xpathEnabled) {
+      colCenter.classList.add('collapsed');
+    } else {
+      colCenter.classList.toggle('collapsed', _xpathPreColCenterCollapsed);
+    }
+  }
+
+  // XPath mode: hide input KV panels and output section — XML + results only
+  const kvDisplay = xpathEnabled ? 'none' : '';
+  if (hdrPanel)   hdrPanel.style.display   = kvDisplay;
+  if (propPanel)  propPanel.style.display  = kvDisplay;
+  if (outSection) outSection.style.display = kvDisplay;
+
+  // #3 Share hidden in XPath mode
+  if (shareBtn) {
+    shareBtn.classList.toggle('hidden', xpathEnabled);
+  }
+
+  // #4 Run button — rename and rewire by mode (never hidden)
+  if (runBtn) {
+    if (xpathEnabled) {
+      runBtn.onclick = runXPath;
+      runBtn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XPath <span class="kbd">⌘↵</span>`;
+    } else {
+      runBtn.onclick = runTransform;
+      runBtn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XSLT <span class="kbd">⌘↵</span>`;
+    }
+  }
+
+  // Mode pill in status bar + console label
+  const modePill = document.getElementById('modePill');
+  if (modePill) {
+    modePill.textContent = xpathEnabled ? 'XPath' : 'XSLT';
+    modePill.className = xpathEnabled ? 'mode-pill mode-xpath' : 'mode-pill mode-xslt';
+  }
+  if (consoleTtl) consoleTtl.textContent = xpathEnabled ? 'Console · XPath Mode' : 'Console · XSLT Mode';
+
+  // Move console: XPath mode → below workspace; XSLT mode → inside colCenter (below XSLT editor)
+  if (console_ && colCenter && workspace) {
+    if (xpathEnabled) {
+      workspace.insertAdjacentElement('afterend', console_);
+    } else {
+      colCenter.appendChild(console_);
+    }
+  }
+}
+
+// ── Toggle XPath evaluator on/off ─────────────────────────────────────────────
+function toggleXPath() {
+  xpathEnabled = !xpathEnabled;
+
+  if (xpathEnabled) {
+    // Save colCenter collapsed state before we hide it
+    const colCenter = document.getElementById('colCenter');
+    _xpathPreColCenterCollapsed = colCenter?.classList.contains('collapsed') ?? false;
+  }
+
+  _applyXPathToggleState();
+
+  // Open right column when enabling — XPath results need to be visible
+  if (xpathEnabled) {
+    const colRight = document.getElementById('colRight');
+    if (colRight?.classList.contains('collapsed')) colRight.classList.remove('collapsed');
+  }
+
+  if (!xpathEnabled) {
+    clearXPathResults();
+    clog('Switched to XSLT mode', 'info');
+  } else {
+    clog('Switched to XPath mode', 'info');
+  }
+  scheduleSave();
+  setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 50);
+}
 
 // ── Clear all XPath highlights from the XML editor ───────────────────────────
 function clearXPathHighlights() {
@@ -215,6 +311,7 @@ function _xpathNormalise(result) {
 // ── Main entry point ──────────────────────────────────────────────────────────
 function runXPath() {
   if (!saxonReady) { clog('Saxon-JS not ready yet', 'error'); return; }
+  if (!xpathEnabled) return;
 
   const input = document.getElementById('xpathInput');
   const expr  = input?.value?.trim();
@@ -400,11 +497,14 @@ async function _showXPathResults(items, errorMsg, isError) {
   const panel   = document.getElementById('xpathResultsPanel');
   const body    = document.getElementById('xpathResultsBody');
   const countEl = document.getElementById('xpathMatchCount');
-  const outSec  = document.getElementById('outputSection');
 
   panel.classList.add('visible');
-  outSec.classList.add('xpath-minimized');
-  setTimeout(() => { eds.out?.layout(); }, 250);
+  // Only minimise output section if it's actually visible (not hidden in XPath mode)
+  const outSec = document.getElementById('outputSection');
+  if (outSec && outSec.style.display !== 'none') {
+    outSec.classList.add('xpath-minimized');
+    setTimeout(() => { eds.out?.layout(); }, 250);
+  }
 
   if (isError) {
     countEl.textContent = 'Error';
@@ -456,8 +556,6 @@ function clearXPathResults() {
   clearXPathHighlights();
   document.getElementById('xpathResultsPanel')?.classList.remove('visible');
   document.getElementById('outputSection')?.classList.remove('xpath-minimized');
-  const input = document.getElementById('xpathInput');
-  if (input) input.value = '';
   setTimeout(() => { eds.out?.layout(); }, 250);
 }
 
@@ -467,6 +565,13 @@ function restoreOutputSection() {
   // Collapse XPath results panel and clear editor highlights — mirror of output being minimized during XPath run
   document.getElementById('xpathResultsPanel')?.classList.remove('visible');
   clearXPathHighlights();
+}
+
+// ── Clear XPath expression input ──────────────────────────────────────────────
+function clearXPathInput() {
+  const input = document.getElementById('xpathInput');
+  if (input) { input.value = ''; input.focus(); scheduleSave(); }
+  clearXPathResults();
 }
 
 // ── Copy XPath expression to clipboard ────────────────────────────────────────
