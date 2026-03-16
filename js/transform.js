@@ -2,6 +2,9 @@
 //  CPI HEADER / PROPERTY SIMULATION
 // ════════════════════════════════════════════
 
+// Shared spinner HTML for the Run button running state
+const _RUN_BTN_SPINNER = `<svg class="spinner" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="8" cy="8" r="6" stroke-opacity="0.3"/><path d="M8 2a6 6 0 0 1 6 6" stroke-linecap="round"/></svg>`;
+
 // Rewrite cpi:setHeader / cpi:setProperty calls to use the js: namespace
 // (http://saxonica.com/ns/globalJS) which Saxon-JS maps to window.xxx().
 // This means Saxon evaluates ALL arguments — including dynamic ones like
@@ -163,18 +166,29 @@ function runTransform() {
   updateConsoleErrBadge();
 
   const btn = document.getElementById('runBtn');
+  const _runStart = performance.now();
+  const _MIN_SPINNER_MS = 300;
+  let _transformStarted = false; // only apply minimum delay if Saxon was actually invoked
+
   function resetBtn() {
-    btn.disabled = false;
-    if (typeof xpathEnabled !== 'undefined' && xpathEnabled) {
-      btn.onclick = runXPath;
-      btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XPath <span class="kbd">⌘↵</span>`;
-    } else {
-      btn.onclick = runTransform;
-      btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XSLT <span class="kbd">⌘↵</span>`;
-    }
+    const elapsed = performance.now() - _runStart;
+    const restore = () => {
+      btn.disabled = false;
+      if (typeof xpathEnabled !== 'undefined' && xpathEnabled) {
+        btn.onclick = runXPath;
+        btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XPath <span class="kbd">⌘↵</span>`;
+      } else {
+        btn.onclick = runTransform;
+        btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XSLT <span class="kbd">⌘↵</span>`;
+      }
+    };
+    const remaining = _transformStarted ? _MIN_SPINNER_MS - elapsed : 0;
+    if (remaining > 0) setTimeout(restore, remaining);
+    else restore();
   }
 
   btn.disabled = true;
+  btn.innerHTML = `${_RUN_BTN_SPINNER} Running… <span class="kbd">⌘↵</span>`;
   setStatus('Transforming…', 'busy');
 
   try {
@@ -189,6 +203,7 @@ function runTransform() {
     if (!preflight(xmlSrc, xsltSrc)) return;
 
     const t0 = performance.now();
+    _transformStarted = true;
     clog(`Starting XSLT transform — XML ${xmlSrc.length} chars · XSLT ${xsltSrc.length} chars`, 'info');
   window.goatcounter?.count({ path: 'run-xslt', title: 'Run XSLT' });
 

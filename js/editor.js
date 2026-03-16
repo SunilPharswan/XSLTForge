@@ -477,7 +477,7 @@ require(['vs/editor/editor.main'], () => {
   // ── XSLT editor actions ──
   eds.xslt.addAction({
     id:    'xd-format-xslt',
-    label: 'Format XML',
+    label: 'Format XSLT',
     contextMenuGroupId: '1_modification',
     contextMenuOrder: 10,
     run(ed) {
@@ -492,10 +492,26 @@ require(['vs/editor/editor.main'], () => {
   });
 
   eds.xslt.addAction({
+    id:    'xd-minify-xslt',
+    label: 'Minify XSLT',
+    contextMenuGroupId: '1_modification',
+    contextMenuOrder: 11,
+    run(ed) {
+      const src = ed.getValue().trim();
+      if (!src) return;
+      const minified = src.replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ');
+      ed.executeEdits('minify-xslt', [{
+        range: ed.getModel().getFullModelRange(), text: minified
+      }]);
+      clog('XSLT minified ✓', 'success');
+    }
+  });
+
+  eds.xslt.addAction({
     id:    'xd-comment-xslt',
     label: 'Comment / Uncomment Lines',
     contextMenuGroupId: '1_modification',
-    contextMenuOrder: 11,
+    contextMenuOrder: 12,
     run(ed) { _toggleXmlComment(ed); }
   });
 
@@ -832,10 +848,11 @@ require(['vs/editor/editor.main'], () => {
         // Restore column collapse states
         if (_savedSession.leftCollapsed)  document.getElementById('colLeft')?.classList.add('collapsed');
         if (!_savedSession.rightCollapsed) document.getElementById('colRight')?.classList.remove('collapsed');
-        // Restore XPath expression
-        if (_savedSession.xpathExpr) {
-          const xpathInput = document.getElementById('xpathInput');
-          if (xpathInput) xpathInput.value = _savedSession.xpathExpr;
+        // Restore XPath expression — always call _syncXPathInput to init overlay + height
+        {
+          const _expr = _savedSession.xpathExpr || (EXAMPLES.xpathNavigation?.xpathExpr ?? '');
+          if (typeof _syncXPathInput === 'function') _syncXPathInput(_expr);
+          else { const xi = document.getElementById('xpathInput'); if (xi) xi.value = _expr; }
         }
         // Restore XPath toggle state (default off if not in session)
         xpathEnabled = _savedSession.xpathEnabled === true;
@@ -848,6 +865,11 @@ require(['vs/editor/editor.main'], () => {
           document.getElementById('colCenter')?.classList.add('collapsed');
         }
         if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+        // After bar is shown, recalculate textarea height — scrollHeight is 0 while hidden
+        if (xpathEnabled) {
+          const _ta = document.getElementById('xpathInput');
+          if (_ta) { _ta.style.height = 'auto'; _ta.style.height = _ta.scrollHeight + 'px'; }
+        }
         // Relay Monaco after potential column changes
         setTimeout(() => { eds.xml?.layout(); eds.xslt?.layout(); eds.out?.layout(); }, 260);
 
@@ -864,6 +886,10 @@ require(['vs/editor/editor.main'], () => {
         clog('Identity Transform loaded. Use Examples menu to load CPI scenarios.', 'info');
         // Apply default XPath state (off) on fresh load
         if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+        // Pre-load default XPath expression so bar is ready when user switches to XPath mode
+        const _defaultExpr = EXAMPLES.xpathNavigation?.xpathExpr ?? '';
+        if (typeof _syncXPathInput === 'function') _syncXPathInput(_defaultExpr);
+        else { const xi = document.getElementById('xpathInput'); if (xi) xi.value = _defaultExpr; }
       }
 
       renderKV('headers');

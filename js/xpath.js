@@ -11,7 +11,93 @@ let xpathDecorations = null;
 let xpathEnabled = false; // off by default — user must explicitly enable
 let _xpathPreColCenterCollapsed = false; // colCenter state before XPath was enabled
 
-// ── XPath expression history ──────────────────────────────────────────────────
+// ── XPath syntax highlight overlay ───────────────────────────────────────────
+// Tokenizes the expression and injects colored <span>s into the overlay div.
+// Token order matters — strings first to prevent keywords inside them matching.
+function _highlightXPath(expr) {
+  const overlay = document.getElementById('xpathOverlay');
+  if (!overlay) return;
+  if (!expr) { overlay.innerHTML = ''; return; }
+
+  const out = [];
+  let i = 0;
+  const src = expr;
+  const len = src.length;
+
+  while (i < len) {
+    let m;
+
+    // String literals — single or double quoted
+    if ((m = /^'[^']*'|^"[^"]*"/.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-str">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
+    // Functions — word or ns:word immediately followed by (
+    if ((m = /^[a-zA-Z_][\w-]*(?::[a-zA-Z_][\w-]*)?\s*(?=\()/.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-fn">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
+    // Attributes — @name
+    if ((m = /^@[\w:.-]+/.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-attr">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
+    // Numbers — integer or decimal
+    if ((m = /^\d+(\.\d+)?/.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-num">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
+    // Keywords / operators
+    if ((m = /^(and|or|not|eq|ne|lt|le|gt|ge|div|mod|idiv|return|for|in|if|then|else|every|some|satisfies|instance|of|treat|as|cast|castable|union|intersect|except)\b/.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-op">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
+    // Path separators — // before /
+    if ((m = /^\/\/|^\//.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-sep">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
+    // Predicates [ ]
+    if ((m = /^[\[\]]/.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-pred">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
+    // Variables — $name or $ns:name
+    if ((m = /^\$[a-zA-Z_][\w.-]*(?::[a-zA-Z_][\w.-]*)?/.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-attr">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
+    // Node / axis names — word, wildcard *, or axis::step
+    if ((m = /^[a-zA-Z_*][\w:.-]*(?:::[a-zA-Z_*][\w:.-]*)?/.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-node">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
+    // Everything else — punctuation, operators, whitespace
+    out.push(escHtml(src[i]));
+    i++;
+  }
+
+  overlay.innerHTML = out.join('');
+}
+
+// ── Programmatic value setter — updates value, overlay, and auto-grow height ──
+function _syncXPathInput(value) {
+  const input = document.getElementById('xpathInput');
+  if (!input) return;
+  input.value = value;
+  const bar = document.getElementById('xpathBar');
+  const barHidden = !bar || bar.style.display === 'none';
+  if (barHidden) {
+    // Bar not visible — reset height so it recalculates correctly when shown
+    input.style.height = '';
+  } else {
+    input.style.height = 'auto';
+    input.style.height = input.scrollHeight + 'px';
+  }
+  _highlightXPath(value);
+}
+
+
 const _xpathHistory = [];        // most-recent-first
 const _xpathHistoryMax = 20;
 const _xpathHistoryKey = 'xdebugx-xpath-history';
@@ -47,19 +133,26 @@ function _xpathHistoryNavigate(direction, input) {
     // Save whatever user was typing before browsing
     _xpathDraftExpr = input.value;
   }
+  const prevCursor = _xpathHistoryCursor;
   if (direction === 'up') {
     _xpathHistoryCursor = Math.min(_xpathHistoryCursor + 1, _xpathHistory.length - 1);
   } else {
     _xpathHistoryCursor = Math.max(_xpathHistoryCursor - 1, -1);
   }
   input.value = _xpathHistoryCursor === -1 ? _xpathDraftExpr : _xpathHistory[_xpathHistoryCursor];
+  // Auto-grow + highlight
+  input.style.height = 'auto';
+  input.style.height = input.scrollHeight + 'px';
+  _highlightXPath(input.value);
   // Move cursor to end
   const len = input.value.length;
   input.setSelectionRange(len, len);
-  if (_xpathHistoryCursor === -1) {
-    clog(`ƒx  History: back to current draft`, 'info');
-  } else {
-    clog(`ƒx  History ${_xpathHistoryCursor + 1}/${_xpathHistory.length}: ${_xpathHistory[_xpathHistoryCursor]}`, 'info');
+  if (_xpathHistoryCursor !== prevCursor) {
+    if (_xpathHistoryCursor === -1) {
+      clog(`ƒx  History: back to current draft`, 'info');
+    } else {
+      clog(`ƒx  History ${_xpathHistoryCursor + 1}/${_xpathHistory.length}: ${_xpathHistory[_xpathHistoryCursor]}`, 'info');
+    }
   }
   scheduleSave();
 }
@@ -82,6 +175,13 @@ function _applyXPathToggleState() {
   if (btnXslt)  btnXslt.classList.toggle('active', !xpathEnabled);
   if (btnXpath) btnXpath.classList.toggle('active',  xpathEnabled);
   if (bar) bar.style.display = xpathEnabled ? '' : 'none';
+
+  // Update XML pane title and collapsed tab label to reflect current mode
+  const xmlPaneTitle  = document.getElementById('xmlPaneTitle');
+  const xmlColTabLabel = document.getElementById('xmlColTabLabel');
+  const _xmlTitle = xpathEnabled ? 'XML Source' : 'Input';
+  if (xmlPaneTitle)   xmlPaneTitle.textContent  = _xmlTitle;
+  if (xmlColTabLabel) xmlColTabLabel.textContent = _xmlTitle;
 
   // When enabling: always collapse colCenter. When disabling: restore to pre-xpath state.
   if (colCenter) {
@@ -143,6 +243,13 @@ function toggleXPath() {
   }
 
   _applyXPathToggleState();
+
+  // When enabling: bar is now visible — recalculate textarea height
+  // (may have been set while hidden, giving 0px)
+  if (xpathEnabled) {
+    const _ta = document.getElementById('xpathInput');
+    if (_ta) { _ta.style.height = 'auto'; _ta.style.height = _ta.scrollHeight + 'px'; }
+  }
 
   // Open right column when enabling — XPath results need to be visible
   if (xpathEnabled) {
@@ -412,6 +519,29 @@ function runXPath() {
   _xpathHistoryPush(expr);
   _xpathHistoryCursor = -1;
 
+  // Show running state on Run button — Option A:
+  // show spinner immediately, keep for minimum 300ms
+  const _btn = document.getElementById('runBtn');
+  const _xpathRunStart = performance.now();
+  const _MIN_SPINNER_MS = 300;
+  if (_btn) {
+    _btn.disabled = true;
+    _btn.innerHTML = `${typeof _RUN_BTN_SPINNER !== 'undefined' ? _RUN_BTN_SPINNER : ''} Running… <span class="kbd">⌘↵</span>`;
+  }
+
+  const _resetXPathBtn = () => {
+    if (!_btn) return;
+    const elapsed = performance.now() - _xpathRunStart;
+    const restore = () => {
+      _btn.disabled = false;
+      _btn.onclick = runXPath;
+      _btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XPath <span class="kbd">⌘↵</span>`;
+    };
+    const remaining = _MIN_SPINNER_MS - elapsed;
+    if (remaining > 0) setTimeout(restore, remaining);
+    else restore();
+  };
+
   try {
     const t0      = performance.now();
     const NS = {
@@ -451,6 +581,8 @@ function runXPath() {
     const msg = (e.message || String(e)).split('\n')[0];
     clog(`ƒx  ${msg}`, 'error');
     _showXPathResults([], msg, true);
+  } finally {
+    _resetXPathBtn();
   }
 }
 
@@ -658,7 +790,7 @@ function restoreOutputSection() {
 // ── Clear XPath expression input ──────────────────────────────────────────────
 function clearXPathInput() {
   const input = document.getElementById('xpathInput');
-  if (input) { input.value = ''; input.focus(); scheduleSave(); }
+  if (input) { input.value = ''; input.style.height = 'auto'; _highlightXPath(''); input.focus(); scheduleSave(); }
   clearXPathResults();
 }
 
