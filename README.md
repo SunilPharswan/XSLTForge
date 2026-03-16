@@ -410,7 +410,7 @@ If you run XSLTDebugX locally (`file://` or `localhost`) GoatCounter does not lo
 
 ## License
 
-MIT
+MIT — with an additional request that this software is not used for commercial purposes without prior written permission from the author. See [LICENSE](LICENSE) for full details.
 
 ---
 
