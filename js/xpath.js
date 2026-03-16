@@ -62,6 +62,11 @@ function _highlightXPath(expr) {
       out.push(`<span class="xpt-pred">${escHtml(m[0])}</span>`);
       i += m[0].length; continue;
     }
+    // Variables — $name or $ns:name
+    if ((m = /^\$[a-zA-Z_][\w.-]*(?::[a-zA-Z_][\w.-]*)?/.exec(src.slice(i)))) {
+      out.push(`<span class="xpt-attr">${escHtml(m[0])}</span>`);
+      i += m[0].length; continue;
+    }
     // Node / axis names — word, wildcard *, or axis::step
     if ((m = /^[a-zA-Z_*][\w:.-]*(?:::[a-zA-Z_*][\w:.-]*)?/.exec(src.slice(i)))) {
       out.push(`<span class="xpt-node">${escHtml(m[0])}</span>`);
@@ -170,6 +175,13 @@ function _applyXPathToggleState() {
   if (btnXslt)  btnXslt.classList.toggle('active', !xpathEnabled);
   if (btnXpath) btnXpath.classList.toggle('active',  xpathEnabled);
   if (bar) bar.style.display = xpathEnabled ? '' : 'none';
+
+  // Update XML pane title and collapsed tab label to reflect current mode
+  const xmlPaneTitle  = document.getElementById('xmlPaneTitle');
+  const xmlColTabLabel = document.getElementById('xmlColTabLabel');
+  const _xmlTitle = xpathEnabled ? 'XML Source' : 'Input';
+  if (xmlPaneTitle)   xmlPaneTitle.textContent  = _xmlTitle;
+  if (xmlColTabLabel) xmlColTabLabel.textContent = _xmlTitle;
 
   // When enabling: always collapse colCenter. When disabling: restore to pre-xpath state.
   if (colCenter) {
@@ -507,6 +519,29 @@ function runXPath() {
   _xpathHistoryPush(expr);
   _xpathHistoryCursor = -1;
 
+  // Show running state on Run button — Option A:
+  // show spinner immediately, keep for minimum 300ms
+  const _btn = document.getElementById('runBtn');
+  const _xpathRunStart = performance.now();
+  const _MIN_SPINNER_MS = 300;
+  if (_btn) {
+    _btn.disabled = true;
+    _btn.innerHTML = `${typeof _RUN_BTN_SPINNER !== 'undefined' ? _RUN_BTN_SPINNER : ''} Running… <span class="kbd">⌘↵</span>`;
+  }
+
+  const _resetXPathBtn = () => {
+    if (!_btn) return;
+    const elapsed = performance.now() - _xpathRunStart;
+    const restore = () => {
+      _btn.disabled = false;
+      _btn.onclick = runXPath;
+      _btn.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M3 1.5l11 6.5-11 6.5V1.5z"/></svg> Run XPath <span class="kbd">⌘↵</span>`;
+    };
+    const remaining = _MIN_SPINNER_MS - elapsed;
+    if (remaining > 0) setTimeout(restore, remaining);
+    else restore();
+  };
+
   try {
     const t0      = performance.now();
     const NS = {
@@ -546,6 +581,8 @@ function runXPath() {
     const msg = (e.message || String(e)).split('\n')[0];
     clog(`ƒx  ${msg}`, 'error');
     _showXPathResults([], msg, true);
+  } finally {
+    _resetXPathBtn();
   }
 }
 

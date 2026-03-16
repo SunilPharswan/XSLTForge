@@ -2,6 +2,18 @@
 //  PANE OPERATIONS
 // ════════════════════════════════════════════
 
+// Track word wrap state per editor — off by default
+const _wrapState = { xml: false, xslt: false, out: false };
+
+function toggleWordWrap(which) {
+  const ed = which === 'xml' ? eds.xml : which === 'xslt' ? eds.xslt : eds.out;
+  if (!ed) return;
+  _wrapState[which] = !_wrapState[which];
+  ed.updateOptions({ wordWrap: _wrapState[which] ? 'on' : 'off' });
+  const btnId = which === 'xml' ? 'wrapToggleXml' : which === 'xslt' ? 'wrapToggleXslt' : 'wrapToggleOut';
+  document.getElementById(btnId)?.classList.toggle('active', _wrapState[which]);
+  clog(`${which.toUpperCase()} word wrap ${_wrapState[which] ? 'on' : 'off'}`, 'info');
+}
 
 function clearPane(which) {
   const ed = which === 'xml' ? eds.xml : which === 'xslt' ? eds.xslt : eds.out;
@@ -176,4 +188,3 @@ function fmtEditor(which) {
 
 // Flag read by debounce handlers to skip one validation cycle after Format
 let _suppressNextValidation = false;
-

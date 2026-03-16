@@ -74,7 +74,7 @@
     <!-- Collapsed tab (shown only when minimized) -->
     <div class="col-tab" onclick="toggleSideCol('left')">
       <div class="col-tab-dot ind-xml"></div>
-      <span class="col-tab-label" id="xmlColTabLabel">Input Message</span>
+      <span class="col-tab-label" id="xmlColTabLabel">Input</span>
     </div>
     <!-- Normal content -->
     <div class="col-inner">
@@ -108,13 +108,14 @@
       <!-- ── XML Input Message bar (always visible) ── -->
       <div class="pane-bar" id="xmlPaneBar">
         <div class="pane-indicator ind-xml"></div>
-        <span class="pane-title" id="xmlPaneTitle">Input Message</span>
+        <span class="pane-title" id="xmlPaneTitle">Input</span>
         <div class="pane-actions">
           <span class="lang-badge">XML</span>
           <button class="pane-act-btn" onclick="fmtEditor('xml')">Format</button>
           <button class="pane-act-btn" onclick="copyPane('xml')">Copy</button>
           <button class="pane-act-btn" onclick="clearPane('xml')">Clear</button>
           <div class="pane-divider"></div>
+          <button class="pane-icon-btn wrap-toggle-btn" id="wrapToggleXml" title="Toggle word wrap" onclick="toggleWordWrap('xml')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"><path d="M2 4h12M2 8h8a2 2 0 0 1 0 4H8m2-2l-2 2 2 2"/></svg></button>
           <button class="pane-icon-btn" title="Upload XML file" onclick="triggerUpload('xml')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V2M5 5l3-3 3 3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg></button>
           <button class="pane-icon-btn" title="Download XML file" onclick="downloadPane('xml','input.xml')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg></button>
           <div class="pane-divider"></div>
@@ -170,6 +171,7 @@
         <button class="pane-act-btn" onclick="copyPane('xslt')">Copy</button>
         <button class="pane-act-btn" onclick="clearPane('xslt')">Clear</button>
         <div class="pane-divider"></div>
+        <button class="pane-icon-btn wrap-toggle-btn" id="wrapToggleXslt" title="Toggle word wrap" onclick="toggleWordWrap('xslt')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"><path d="M2 4h12M2 8h8a2 2 0 0 1 0 4H8m2-2l-2 2 2 2"/></svg></button>
         <button class="pane-icon-btn" title="Upload XSLT file" onclick="triggerUpload('xslt')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V2M5 5l3-3 3 3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg></button>
         <button class="pane-icon-btn" title="Download XSLT file" onclick="downloadPane('xslt','stylesheet.xslt')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg></button>
       </div>
@@ -232,7 +234,7 @@
       <div class="output-section" id="outputSection">
         <div class="pane-bar">
           <div class="pane-indicator ind-out"></div>
-          <span class="pane-title">Output Message</span>
+          <span class="pane-title">Output</span>
           <div class="pane-actions">
             <button class="collapse-btn" title="Collapse panel" onclick="toggleSideCol('right')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg></button>
             <div class="pane-divider"></div>
@@ -240,6 +242,7 @@
             <button class="pane-act-btn" onclick="copyPane('out')">Copy</button>
             <button class="pane-act-btn" onclick="clearPane('out')">Clear</button>
             <div class="pane-divider"></div>
+            <button class="pane-icon-btn wrap-toggle-btn" id="wrapToggleOut" title="Toggle word wrap" onclick="toggleWordWrap('out')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"><path d="M2 4h12M2 8h8a2 2 0 0 1 0 4H8m2-2l-2 2 2 2"/></svg></button>
             <button class="pane-icon-btn" title="Download output as XML" onclick="downloadPane('out','output.xml')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg></button>
           </div>
         </div>
