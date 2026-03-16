@@ -47,6 +47,7 @@ function _xpathHistoryNavigate(direction, input) {
     // Save whatever user was typing before browsing
     _xpathDraftExpr = input.value;
   }
+  const prevCursor = _xpathHistoryCursor;
   if (direction === 'up') {
     _xpathHistoryCursor = Math.min(_xpathHistoryCursor + 1, _xpathHistory.length - 1);
   } else {
@@ -56,10 +57,12 @@ function _xpathHistoryNavigate(direction, input) {
   // Move cursor to end
   const len = input.value.length;
   input.setSelectionRange(len, len);
-  if (_xpathHistoryCursor === -1) {
-    clog(`ƒx  History: back to current draft`, 'info');
-  } else {
-    clog(`ƒx  History ${_xpathHistoryCursor + 1}/${_xpathHistory.length}: ${_xpathHistory[_xpathHistoryCursor]}`, 'info');
+  if (_xpathHistoryCursor !== prevCursor) {
+    if (_xpathHistoryCursor === -1) {
+      clog(`ƒx  History: back to current draft`, 'info');
+    } else {
+      clog(`ƒx  History ${_xpathHistoryCursor + 1}/${_xpathHistory.length}: ${_xpathHistory[_xpathHistoryCursor]}`, 'info');
+    }
   }
   scheduleSave();
 }

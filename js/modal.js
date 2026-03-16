@@ -50,6 +50,7 @@ function handleModalBackdropClick(e) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     closeExModal();
+    if (typeof closeShareModal === 'function') closeShareModal();
     return;
   }
   // Ctrl+Enter / Cmd+Enter → mode-aware run (works even when KV inputs have focus)
@@ -143,6 +144,7 @@ function loadExample(key) {
     // XSLT example — switch to XSLT mode
     xpathEnabled = false;
     if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+    if (typeof clearXPathResults === 'function') clearXPathResults();
     clog('Switched to XSLT mode', 'info');
   }
 
