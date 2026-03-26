@@ -839,30 +839,38 @@ const EXAMPLES = {
 </xsl:stylesheet>`
   },
 
-  cpiHeaders: {
-    label: 'Headers & Properties (CPI)',
-    icon: '⚙️',
-    desc: 'xsl:param binding + cpi:setHeader / setProperty',
+  cpiGetSet: {
+    label: 'CPI Headers & Properties (Complete)',
+    icon: '🔄',
+    desc: 'Set + Get headers/properties with console debugging',
     cat:  'cpi',
     xml: `<?xml version="1.0" encoding="UTF-8"?>
-<Products>
-  <Product>
-    <ProductId>P-001</ProductId>
-    <Name>Hydraulic Pump</Name>
-    <Category>Mechanical</Category>
-    <Price>1450.00</Price>
-    <CurrencyCode>EUR</CurrencyCode>
-  </Product>
-  <Product>
-    <ProductId>P-002</ProductId>
-    <Name>Control Valve</Name>
-    <Category>Electrical</Category>
-    <Price>320.00</Price>
-    <CurrencyCode>EUR</CurrencyCode>
-  </Product>
-</Products>`,
-    headers: [['orderid', 'PO-2024-42'], ['sourceSystem', 'SAP-ERP']],
-    properties: [['quantity', '5'], ['processMode', 'PROD']],
+<CustomerOrder>
+  <Header>
+    <OrderId>ORD-2024-99142</OrderId>
+    <CustomerId>C-10042</CustomerId>
+    <CustomerTier>GOLD</CustomerTier>
+    <OrderDate>2024-03-26</OrderDate>
+    <TotalAmount>4250.00</TotalAmount>
+    <Currency>EUR</Currency>
+  </Header>
+  <Items>
+    <Item>
+      <SkuId>SKU-001</SkuId>
+      <ProductName>Industrial Sensor XR20</ProductName>
+      <Qty>10</Qty>
+      <UnitPrice>125.00</UnitPrice>
+    </Item>
+    <Item>
+      <SkuId>SKU-002</SkuId>
+      <ProductName>Control Module CM50</ProductName>
+      <Qty>5</Qty>
+      <UnitPrice>450.00</UnitPrice>
+    </Item>
+  </Items>
+</CustomerOrder>`,
+    headers: [['source', 'WEBSHOP'], ['channel', 'B2B']],
+    properties: [['environment', 'PROD'], ['maxRetries', '3']],
     xslt: `<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="3.0"
   xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -872,44 +880,200 @@ const EXAMPLES = {
   <xsl:output method="xml" indent="yes"/>
 
   <!--
-    SAP CPI Headers & Properties demo.
-    $exchange is the CPI exchange object — always declared but never used directly.
-    cpi:setHeader / cpi:setProperty write to the message header/property map.
-    Header params map to message headers; property params map to exchange properties.
+    ╔═══════════════════════════════════════════════════════════════════╗
+    ║  CPI HEADERS & PROPERTIES — COMPLETE DEMO                         ║
+    ║  For SAP Cloud Integration Newcomers                              ║
+    ╚═══════════════════════════════════════════════════════════════════╝
+
+    This example demonstrates:
+      ✅ Setting headers + properties   (cpi:setHeader / cpi:setProperty)
+      ✅ Getting headers + properties   (cpi:getHeader / cpi:getProperty)
+      ✅ Using retrieved values in transformation logic
+      ✅ Console debugging with xsl:message
+      ✅ Dynamic routing based on customer tier + source channel
+
+    ┌─────────────────────────────────────────────────────────────────┐
+    │  HEADERS vs PROPERTIES — What's the Difference?                 │
+    ├─────────────────────────────────────────────────────────────────┤
+    │  HEADERS:      Protocol-level (HTTP headers, SOAP headers)      │
+    │                Used for routing, authentication, content-type   │
+    │                Visible to external systems                      │
+    │                                                                  │
+    │  PROPERTIES:   CPI-internal exchange properties                 │
+    │                Shared across mapping/script/router steps        │
+    │                NOT visible to external systems                  │
+    │                Used for flow control, intermediate values        │
+    └─────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────┐
+    │  HOW IT WORKS IN CPI                                             │
+    ├─────────────────────────────────────────────────────────────────┤
+    │  1. Incoming message arrives with headers (source, channel)     │
+    │  2. XSLT reads headers via cpi:getHeader()                      │
+    │  3. XSLT inspects payload (CustomerTier, TotalAmount)           │
+    │  4. XSLT sets new headers for downstream routing                │
+    │  5. XSLT sets properties for audit logging / tracking           │
+    │  6. Router step checks headers to decide next step              │
+    └─────────────────────────────────────────────────────────────────┘
   -->
 
+  <!-- ═══════ INPUT PARAMETERS ═══════════════════════════════════ -->
+  <!--
+    $exchange: always provided by CPI runtime — reference to the message exchange object
+    Below params map to:
+      - Headers:    source, channel (from CPI message headers)
+      - Properties: environment, maxRetries (from CPI exchange properties)
+  -->
   <xsl:param name="exchange"/>
-  <xsl:param name="orderid"/>
-  <xsl:param name="sourceSystem" select="'UNKNOWN'"/>
-  <xsl:param name="quantity"     select="'1'"/>
-  <xsl:param name="processMode"  select="'TEST'"/>
+  <xsl:param name="source"      select="'UNKNOWN'"/>  <!-- Incoming header: source system  -->
+  <xsl:param name="channel"     select="'UNKNOWN'"/>  <!-- Incoming header: B2B or B2C     -->
+  <xsl:param name="environment" select="'DEV'"/>      <!-- Incoming property: DEV/QA/PROD  -->
+  <xsl:param name="maxRetries"  select="'1'"/>        <!-- Incoming property: retry limit  -->
 
-  <!-- Set output headers -->
-  <xsl:value-of select="cpi:setHeader($exchange, 'content-type',      'application/xml')"/>
-  <xsl:value-of select="cpi:setHeader($exchange, 'SAP_ApplicationID', $orderid)"/>
-  <xsl:value-of select="cpi:setHeader($exchange, 'X-Source-System',   $sourceSystem)"/>
 
-  <!-- Set exchange properties -->
-  <xsl:value-of select="cpi:setProperty($exchange, 'processedBy',  'XSLTDebugX')"/>
-  <xsl:value-of select="cpi:setProperty($exchange, 'processMode',  $processMode)"/>
+  <!-- ═══════ MAIN TEMPLATE ══════════════════════════════════════ -->
+  <xsl:template match="/CustomerOrder">
+    <!-- ─── STEP 1: Retrieve incoming header values via cpi:getHeader() ─── -->
+    <xsl:variable name="incomingSource"  select="cpi:getHeader($exchange, 'source')"/>
+    <xsl:variable name="incomingChannel" select="cpi:getHeader($exchange, 'channel')"/>
 
-  <xsl:template match="Products">
-    <PurchaseOrder orderId="{$orderid}" mode="{$processMode}">
+    <!-- ─── Console Debug: Show incoming values ─── -->
+    <xsl:message>
+      <xsl:text>🔵 [DEBUG] Incoming Headers: </xsl:text>
+      <xsl:text>source=</xsl:text><xsl:value-of select="$incomingSource"/>
+      <xsl:text>, channel=</xsl:text><xsl:value-of select="$incomingChannel"/>
+    </xsl:message>
+
+
+    <!-- ─── STEP 2: Retrieve incoming property values via cpi:getProperty() ─── -->
+    <xsl:variable name="env"      select="cpi:getProperty($exchange, 'environment')"/>
+    <xsl:variable name="retries"  select="cpi:getProperty($exchange, 'maxRetries')"/>
+
+    <!-- ─── Console Debug: Show incoming properties ─── -->
+    <xsl:message>
+      <xsl:text>🟢 [DEBUG] Incoming Properties: </xsl:text>
+      <xsl:text>environment=</xsl:text><xsl:value-of select="$env"/>
+      <xsl:text>, maxRetries=</xsl:text><xsl:value-of select="$retries"/>
+    </xsl:message>
+
+
+    <!-- ─── STEP 3: Extract payload data for business logic ─── -->
+    <xsl:variable name="tier"    select="Header/CustomerTier"/>
+    <xsl:variable name="orderId" select="Header/OrderId"/>
+    <xsl:variable name="amount"  select="xs:decimal(Header/TotalAmount)"/>
+
+    <!-- ─── Console Debug: Show extracted payload values ─── -->
+    <xsl:message>
+      <xsl:text>📦 [DEBUG] Payload Values: </xsl:text>
+      <xsl:text>OrderId=</xsl:text><xsl:value-of select="$orderId"/>
+      <xsl:text>, Tier=</xsl:text><xsl:value-of select="$tier"/>
+      <xsl:text>, Amount=</xsl:text><xsl:value-of select="$amount"/>
+    </xsl:message>
+
+
+    <!-- ─── STEP 4: Business Logic — Determine routing and priority ─── -->
+    <!--
+      BUSINESS RULES:
+        - GOLD tier + amount > 1000  → Priority=HIGH,  Route=EXPRESS
+        - SILVER tier                 → Priority=MED,   Route=STANDARD
+        - BRONZE tier or low amount   → Priority=LOW,   Route=ECONOMY
+
+      Priority header: used by downstream system for SLA handling
+      Route header:    used by CPI Router step to branch to different receivers
+    -->
+    <xsl:variable name="priority" select="
+      if ($tier = 'GOLD' and $amount gt 1000) then 'HIGH'
+      else if ($tier = 'SILVER') then 'MEDIUM'
+      else 'LOW'"/>
+
+    <xsl:variable name="route" select="
+      if ($tier = 'GOLD' and $amount gt 1000) then 'EXPRESS'
+      else if ($tier = 'SILVER') then 'STANDARD'
+      else 'ECONOMY'"/>
+
+    <!-- ─── Console Debug: Show calculated routing ─── -->
+    <xsl:message>
+      <xsl:text>🧮 [DEBUG] Calculated Routing: </xsl:text>
+      <xsl:text>Priority=</xsl:text><xsl:value-of select="$priority"/>
+      <xsl:text>, Route=</xsl:text><xsl:value-of select="$route"/>
+    </xsl:message>
+
+
+    <!-- ─── STEP 5: SET HEADERS for downstream systems (via HTTP headers or SOAP headers) ─── -->
+    <xsl:value-of select="cpi:setHeader($exchange, 'X-Order-Id',      $orderId)"/>
+    <xsl:value-of select="cpi:setHeader($exchange, 'X-Priority',      $priority)"/>
+    <xsl:value-of select="cpi:setHeader($exchange, 'X-Route',         $route)"/>
+    <xsl:value-of select="cpi:setHeader($exchange, 'X-Customer-Tier', $tier)"/>
+    <xsl:value-of select="cpi:setHeader($exchange, 'Content-Type',    'application/xml')"/>
+
+    <!-- ─── Console Debug: Confirm headers set ─── -->
+    <xsl:message>
+      <xsl:text>✅ [DEBUG] Headers SET: </xsl:text>
+      <xsl:text>X-Order-Id=</xsl:text><xsl:value-of select="$orderId"/>
+      <xsl:text>, X-Priority=</xsl:text><xsl:value-of select="$priority"/>
+      <xsl:text>, X-Route=</xsl:text><xsl:value-of select="$route"/>
+    </xsl:message>
+
+
+    <!-- ─── STEP 6: SET PROPERTIES for CPI-internal tracking (audit, logging, flow control) ─── -->
+    <xsl:value-of select="cpi:setProperty($exchange, 'processedBy',   'XSLTForge-Demo')"/>
+    <xsl:value-of select="cpi:setProperty($exchange, 'tier',          $tier)"/>
+    <xsl:value-of select="cpi:setProperty($exchange, 'orderAmount',   string($amount))"/>
+    <xsl:value-of select="cpi:setProperty($exchange, 'routeDecision', $route)"/>
+
+    <!-- ─── Console Debug: Confirm properties set ─── -->
+    <xsl:message>
+      <xsl:text>✅ [DEBUG] Properties SET: </xsl:text>
+      <xsl:text>processedBy=XSLTForge-Demo, tier=</xsl:text><xsl:value-of select="$tier"/>
+      <xsl:text>, orderAmount=</xsl:text><xsl:value-of select="$amount"/>
+    </xsl:message>
+
+
+    <!-- ─── STEP 7: Transform the payload ─── -->
+    <ProcessedOrder>
+      <Metadata>
+        <OrderId><xsl:value-of select="$orderId"/></OrderId>
+        <Source><xsl:value-of select="$incomingSource"/></Source>
+        <Channel><xsl:value-of select="$incomingChannel"/></Channel>
+        <Environment><xsl:value-of select="$env"/></Environment>
+        <Priority><xsl:value-of select="$priority"/></Priority>
+        <Route><xsl:value-of select="$route"/></Route>
+        <ProcessedTimestamp><xsl:value-of select="current-dateTime()"/></ProcessedTimestamp>
+      </Metadata>
+      <Customer>
+        <CustomerId><xsl:value-of select="Header/CustomerId"/></CustomerId>
+        <Tier><xsl:value-of select="$tier"/></Tier>
+      </Customer>
+      <OrderSummary>
+        <ItemCount><xsl:value-of select="count(Items/Item)"/></ItemCount>
+        <TotalAmount currency="{Header/Currency}">
+          <xsl:value-of select="Header/TotalAmount"/>
+        </TotalAmount>
+      </OrderSummary>
       <Items>
-        <xsl:apply-templates select="Product"/>
+        <xsl:apply-templates select="Items/Item"/>
       </Items>
-      <TotalItems><xsl:value-of select="count(Product)"/></TotalItems>
-    </PurchaseOrder>
+    </ProcessedOrder>
+
+    <!-- ─── Final Console Debug: Transformation complete ─── -->
+    <xsl:message>
+      <xsl:text>✅ [DEBUG] Transformation COMPLETE. Order </xsl:text>
+      <xsl:value-of select="$orderId"/>
+      <xsl:text> routed to: </xsl:text>
+      <xsl:value-of select="$route"/>
+    </xsl:message>
   </xsl:template>
 
-  <xsl:template match="Product">
+
+  <!-- ═══════ ITEM TEMPLATE ══════════════════════════════════════ -->
+  <xsl:template match="Item">
     <Item>
-      <ProductId><xsl:value-of select="ProductId"/></ProductId>
-      <Name><xsl:value-of select="Name"/></Name>
-      <Quantity><xsl:value-of select="$quantity"/></Quantity>
-      <UnitPrice currency="{CurrencyCode}"><xsl:value-of select="Price"/></UnitPrice>
-      <LineTotal currency="{CurrencyCode}">
-        <xsl:value-of select="format-number(xs:decimal(Price) * xs:decimal($quantity), '#,##0.00')"/>
+      <SKU><xsl:value-of select="SkuId"/></SKU>
+      <Product><xsl:value-of select="ProductName"/></Product>
+      <Quantity><xsl:value-of select="Qty"/></Quantity>
+      <UnitPrice><xsl:value-of select="UnitPrice"/></UnitPrice>
+      <LineTotal>
+        <xsl:value-of select="format-number(xs:decimal(Qty) * xs:decimal(UnitPrice), '#,##0.00')"/>
       </LineTotal>
     </Item>
   </xsl:template>

@@ -8,8 +8,10 @@ let xmlDecorations  = null;
 
 // Clear all markers and decorations from both editors
 function clearAllMarkers() {
-  monaco.editor.setModelMarkers(eds.xslt.getModel(), 'xsltforge', []);
-  monaco.editor.setModelMarkers(eds.xml.getModel(),  'xsltforge', []);
+  // Clear markers on both XML models — prevents stale markers on inactive model
+  if (xmlModelXslt)  monaco.editor.setModelMarkers(xmlModelXslt,  'xsltforge', []);
+  if (xmlModelXpath) monaco.editor.setModelMarkers(xmlModelXpath, 'xsltforge', []);
+  if (eds.xslt)      monaco.editor.setModelMarkers(eds.xslt.getModel(), 'xsltforge', []);
   if (xsltDecorations) { xsltDecorations.clear(); xsltDecorations = null; }
   if (xmlDecorations)  { xmlDecorations.clear();  xmlDecorations  = null; }
 }

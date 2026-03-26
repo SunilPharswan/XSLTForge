@@ -234,6 +234,15 @@ function _applyXPathToggleState() {
 
 // ── Toggle XPath evaluator on/off ─────────────────────────────────────────────
 function toggleXPath() {
+  // Clear XPath decorations before disabling — prevents stale highlights
+  if (xpathEnabled && xmlDecorations) {
+    try { xmlDecorations.clear(); } catch(e) {}
+    xmlDecorations = null;
+  }
+
+  // Set suppression flag before toggling to prevent synthetic content-change on setModel()
+  _suppressNextXmlChange = true;
+
   xpathEnabled = !xpathEnabled;
 
   if (xpathEnabled) {
@@ -242,7 +251,23 @@ function toggleXPath() {
     _xpathPreColCenterCollapsed = colCenter?.classList.contains('collapsed') ?? false;
   }
 
+  // ── SWAP XML MODEL ── 
+  // Switch the editor's active model between XSLT and XPath modes
+  if (eds.xml && xmlModelXpath && xmlModelXslt) {
+    eds.xml.setModel(xpathEnabled ? xmlModelXpath : xmlModelXslt);
+    eds.xml.layout();
+  } else {
+    // If editor not ready, clear suppression flag to prevent orphaning
+    _suppressNextXmlChange = false;
+  }
+
   _applyXPathToggleState();
+
+  // Update cursor stat immediately after mode switch
+  if (eds.xml && typeof _updateCursorStat === 'function') {
+    const label = xpathEnabled ? 'XML Source' : 'XML Input';
+    _updateCursorStat(eds.xml, label);
+  }
 
   // When enabling: bar is now visible — recalculate textarea height
   // (may have been set while hidden, giving 0px)

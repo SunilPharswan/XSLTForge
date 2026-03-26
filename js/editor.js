@@ -174,9 +174,24 @@ require(['vs/editor/editor.main'], () => {
   // Skip session restore when a share link is pending — applyShareData handles init.
   const _savedSession = window._pendingShareData ? null : loadSavedState();
 
+  // ── Create two XML models for mode isolation ──
+  // XSLT mode model — defaults to identity transform or saved xmlXslt
+  // Backwards compatibility: if only old 'xml' key exists, use it for XSLT model
+  xmlModelXslt = monaco.editor.createModel(
+    _savedSession?.xmlXslt ?? _savedSession?.xml ?? EXAMPLES.identityTransform.xml,
+    'xml'
+  );
+
+  // XPath mode model — defaults to xpath navigation example or saved xmlXpath
+  xmlModelXpath = monaco.editor.createModel(
+    _savedSession?.xmlXpath ?? EXAMPLES.xpathNavigation.xml,
+    'xml'
+  );
+
+  // ── Create XML editor with XSLT model initially active ──
   eds.xml = monaco.editor.create(
     document.getElementById('xmlEd'),
-    { ...shared, language: 'xml', value: _savedSession?.xml ?? EXAMPLES.identityTransform.xml }
+    { ...shared, language: 'xml', model: xmlModelXslt }
   );
 
   eds.xslt = monaco.editor.create(
@@ -780,6 +795,8 @@ require(['vs/editor/editor.main'], () => {
   });
 
   eds.xml.onDidChangeModelContent(() => {
+    // Guard against synthetic content-change event during model swap in toggleXPath
+    if (_suppressNextXmlChange) { _suppressNextXmlChange = false; return; }
     scheduleSave();
     if (_suppressNextValidation) { _suppressNextValidation = false; return; }
     monaco.editor.setModelMarkers(eds.xml.getModel(), 'xsltforge', []);
@@ -792,6 +809,11 @@ require(['vs/editor/editor.main'], () => {
   });
 
   // ── Cursor position + character count in status bar ──────────────────────────
+  // XML label changes dynamically based on mode: 'XML Input' (XSLT) vs 'XML Source' (XPath)
+  function _getXmlLabel() {
+    return (typeof xpathEnabled !== 'undefined' && xpathEnabled) ? 'XML Source' : 'XML Input';
+  }
+
   function _updateCursorStat(ed, label) {
     const pos      = ed.getPosition();
     const model    = ed.getModel();
@@ -803,17 +825,20 @@ require(['vs/editor/editor.main'], () => {
       `${label}  Ln ${pos.lineNumber}/${lines} · Col ${pos.column} · ${chars.toLocaleString()} chars`;
   }
 
+  // Expose _updateCursorStat globally so toggleXPath can update cursor stat after mode switch
+  window._updateCursorStat = _updateCursorStat;
+
   [
-    { ed: eds.xml,  label: 'XML' },
-    { ed: eds.xslt, label: 'XSLT' },
-    { ed: eds.out,  label: 'Output' },
-  ].forEach(({ ed, label }) => {
-    ed.onDidChangeCursorPosition(() => _updateCursorStat(ed, label));
-    ed.onDidFocusEditorText(()      => _updateCursorStat(ed, label));
-    ed.onDidChangeModelContent(()   => _updateCursorStat(ed, label));
+    { ed: eds.xml,  getLabel: _getXmlLabel },  // Dynamic label based on mode
+    { ed: eds.xslt, getLabel: () => 'XSLT' },
+    { ed: eds.out,  getLabel: () => 'Output' },
+  ].forEach(({ ed, getLabel }) => {
+    ed.onDidChangeCursorPosition(() => _updateCursorStat(ed, getLabel()));
+    ed.onDidFocusEditorText(()      => _updateCursorStat(ed, getLabel()));
+    ed.onDidChangeModelContent(()   => _updateCursorStat(ed, getLabel()));
   });
   // Initialise with XML pane on load
-  _updateCursorStat(eds.xml, 'XML');
+  _updateCursorStat(eds.xml, _getXmlLabel());
 
   document.getElementById('loadTxt').textContent = 'Loading Saxon-JS…';
 
@@ -856,6 +881,12 @@ require(['vs/editor/editor.main'], () => {
         }
         // Restore XPath toggle state (default off if not in session)
         xpathEnabled = _savedSession.xpathEnabled === true;
+        // Swap editor model to match restored mode
+        if (xpathEnabled && xmlModelXpath) {
+          eds.xml.setModel(xmlModelXpath);
+        } else if (!xpathEnabled && xmlModelXslt) {
+          eds.xml.setModel(xmlModelXslt);
+        }
         // Restore pre-xpath colCenter state so toggling back to XSLT restores it correctly
         if (typeof _xpathPreColCenterCollapsed !== 'undefined') {
           _xpathPreColCenterCollapsed = _savedSession.centerCollapsed ?? false;
@@ -865,6 +896,10 @@ require(['vs/editor/editor.main'], () => {
           document.getElementById('colCenter')?.classList.add('collapsed');
         }
         if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+        // Update cursor stat label to match restored mode
+        if (eds.xml && typeof _updateCursorStat === 'function') {
+          _updateCursorStat(eds.xml, xpathEnabled ? 'XML Source' : 'XML Input');
+        }
         // After bar is shown, recalculate textarea height — scrollHeight is 0 while hidden
         if (xpathEnabled) {
           const _ta = document.getElementById('xpathInput');
