@@ -1,4 +1,3 @@
-/README.md             /404.html   404
-/LICENSE               /404.html   404
-/wrangler.jsonc        /404.html   404
-/THIRD_PARTY_LICENSES  /404.html   404
+# Redirect deployment configs only (keep docs accessible for open source)
+/wrangler.jsonc        /   301
+/.wrangler/*           /   301

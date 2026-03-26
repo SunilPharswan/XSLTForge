@@ -16,18 +16,26 @@ function toggleWordWrap(which) {
 }
 
 function clearPane(which) {
-  const ed = which === 'xml' ? eds.xml : which === 'xslt' ? eds.xslt : eds.out;
+  if (which === 'xml') {
+    // Clear both XML models to prevent content reappearing on mode switch
+    if (xmlModelXslt) xmlModelXslt.setValue('');
+    if (xmlModelXpath) xmlModelXpath.setValue('');
+    // Clear markers on both models
+    if (xmlModelXslt)  monaco.editor.setModelMarkers(xmlModelXslt,  'xsltforge', []);
+    if (xmlModelXpath) monaco.editor.setModelMarkers(xmlModelXpath, 'xsltforge', []);
+    if (xmlDecorations)  { xmlDecorations.clear();  xmlDecorations  = null; }
+    setStatus('Ready', 'ok');
+    scheduleSave();
+    return;
+  }
+  
+  const ed = which === 'xslt' ? eds.xslt : eds.out;
   if (!ed) return;
   const wasReadOnly = ed.getRawOptions().readOnly;
   if (wasReadOnly) ed.updateOptions({ readOnly: false });
   ed.setValue('');
   if (wasReadOnly) ed.updateOptions({ readOnly: true });
   // Clear error markers from this pane
-  if (which === 'xml'  && eds.xml)  {
-    monaco.editor.setModelMarkers(eds.xml.getModel(),  'xsltforge', []);
-    if (xmlDecorations)  { xmlDecorations.clear();  xmlDecorations  = null; }
-    setStatus('Ready', 'ok');
-  }
   if (which === 'xslt' && eds.xslt) {
     monaco.editor.setModelMarkers(eds.xslt.getModel(), 'xsltforge', []);
     if (xsltDecorations) { xsltDecorations.clear(); xsltDecorations = null; }

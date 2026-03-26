@@ -140,11 +140,27 @@ function loadExample(key) {
     _xpathPreColCenterCollapsed = colCenter?.classList.contains('collapsed') ?? false;
     xpathEnabled = true;
     if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+    // Swap the editor model to match the new mode
+    if (eds.xml && xmlModelXpath) {
+      _suppressNextXmlChange = true;  // Prevent synthetic content-change on setModel()
+      eds.xml.setModel(xmlModelXpath);
+      eds.xml.layout();
+    }
+    // Update cursor stat label
+    if (eds.xml && typeof _updateCursorStat === 'function') _updateCursorStat(eds.xml, 'XML Source');
     clog('Switched to XPath mode', 'info');
   } else if (!ex.xpathExpr && xpathEnabled) {
     // XSLT example — switch to XSLT mode
     xpathEnabled = false;
     if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+    // Swap the editor model to match the new mode
+    if (eds.xml && xmlModelXslt) {
+      _suppressNextXmlChange = true;  // Prevent synthetic content-change on setModel()
+      eds.xml.setModel(xmlModelXslt);
+      eds.xml.layout();
+    }
+    // Update cursor stat label
+    if (eds.xml && typeof _updateCursorStat === 'function') _updateCursorStat(eds.xml, 'XML Input');
     if (typeof clearXPathResults === 'function') clearXPathResults();
     clog('Switched to XSLT mode', 'info');
   }
@@ -155,12 +171,16 @@ function loadExample(key) {
   clearAllMarkers();
 
   try {
-    _suppressNextValidation = true;
-    eds.xml?.setValue(ex.xml);
+    // Route XML content to the correct model based on current mode
+    const targetXmlModel = xpathEnabled ? xmlModelXpath : xmlModelXslt;
+    if (targetXmlModel) {
+      targetXmlModel.setValue(ex.xml);
+    }
+    
     // Only set XSLT if in XSLT mode (and example has XSLT content)
-    if (!xpathEnabled && ex.xslt) {
+    if (!xpathEnabled && ex.xslt && eds.xslt) {
       _suppressNextValidation = true;
-      eds.xslt?.setValue(ex.xslt);
+      eds.xslt.setValue(ex.xslt);
     }
   } finally {
     _suppressNextValidation = false;

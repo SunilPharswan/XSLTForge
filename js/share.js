@@ -6,7 +6,8 @@
 
 function buildSharePayload() {
   return {
-    xml:        eds.xml?.getValue()  ?? '',
+    // Share is XSLT-only — always read from XSLT model explicitly
+    xml:        xmlModelXslt?.getValue() ?? '',
     xslt:       eds.xslt?.getValue() ?? '',
     headers:    kvData.headers.map(r    => ({ name: r.name, value: r.value })),
     properties: kvData.properties.map(r => ({ name: r.name, value: r.value })),
@@ -58,6 +59,13 @@ function applyShareData(data) {
   if (typeof xpathEnabled !== 'undefined' && xpathEnabled) {
     xpathEnabled = false;
     if (typeof _applyXPathToggleState === 'function') _applyXPathToggleState();
+    // Swap editor model to XSLT model
+    if (eds.xml && xmlModelXslt) {
+      _suppressNextXmlChange = true;
+      eds.xml.setModel(xmlModelXslt);
+      eds.xml.layout();
+    }
+    if (eds.xml && typeof _updateCursorStat === 'function') _updateCursorStat(eds.xml, 'XML Input');
     clog('Switched to XSLT mode — share link loaded', 'info');
   }
 
@@ -65,14 +73,11 @@ function applyShareData(data) {
   clearTimeout(xmlDebounce);
   clearAllMarkers();
 
-  // try/finally guarantees both suppress flags are cleared even if setValue throws
-  // (e.g. a disposed Monaco model), preventing save and validation from being silently
-  // disabled for the rest of the session.
-  try {
-    if (data.xml  !== undefined) { _suppressNextSave = true; _suppressNextValidation = true; eds.xml?.setValue(data.xml); }
-    if (data.xslt !== undefined) { _suppressNextSave = true; _suppressNextValidation = true; eds.xslt?.setValue(data.xslt); }
-  } finally {
-    _suppressNextSave = false;
+  // Write directly to XSLT model (share is always XSLT context)
+  if (data.xml  !== undefined) xmlModelXslt?.setValue(data.xml);
+  if (data.xslt !== undefined) {
+    _suppressNextValidation = true;
+    eds.xslt?.setValue(data.xslt);
     _suppressNextValidation = false;
   }
 

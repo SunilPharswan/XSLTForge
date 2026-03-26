@@ -4,6 +4,10 @@
 let eds = { xml: null, xslt: null, out: null };
 let saxonReady  = false;
 
+// Two separate XML models for XSLT/XPath mode isolation
+let xmlModelXslt  = null;  // XML model for XSLT mode
+let xmlModelXpath = null;  // XML model for XPath mode
+
 // KV stores: { id, name, value }
 let kvData = { headers: [], properties: [] };
 let kvIdSeq = 0;
@@ -76,6 +80,9 @@ let _saveTimer = null;
 // Set _suppressNextSave = true before a programmatic setValue to skip that one save.
 let _suppressNextSave = false;
 
+// Guard against synthetic content-change event when swapping models in toggleXPath
+let _suppressNextXmlChange = false;
+
 function scheduleSave() {
   if (_suppressNextSave) { _suppressNextSave = false; return; }
   clearTimeout(_saveTimer);
@@ -85,7 +92,9 @@ function scheduleSave() {
 function saveState() {
   try {
     const state = {
-      xml:        eds.xml?.getValue()  ?? '',
+      // Save both XML models independently
+      xmlXslt:    xmlModelXslt?.getValue()  ?? '',
+      xmlXpath:   xmlModelXpath?.getValue() ?? '',
       xslt:       eds.xslt?.getValue() ?? '',
       headers:    kvData.headers.map(r => ({ name: r.name, value: r.value })),
       properties: kvData.properties.map(r => ({ name: r.name, value: r.value })),
@@ -126,8 +135,8 @@ function clearSavedState() {
 
   if (_isXPath) {
     // ── XPath mode reset — stay in XPath, reset XML + expression only ──
-    if (eds.xml) { _suppressNextSave = true; eds.xml.setValue(EXAMPLES.xpathNavigation.xml); }
-    _suppressNextSave = false;
+    // Reset the XPath model directly (no suppression needed — inactive model won't trigger editor listeners)
+    if (xmlModelXpath) xmlModelXpath.setValue(EXAMPLES.xpathNavigation.xml);
     if (eds.out) { monaco.editor.setModelLanguage(eds.out.getModel(), 'xml'); const _b=document.getElementById('outLangBadge'); const _d=document.getElementById('outDownloadBtn'); if(_b)_b.textContent='XML'; if(_d){_d.title='Download output as XML';_d.onclick=()=>downloadPane('out','output.xml');} eds.out.updateOptions({ readOnly: false }); eds.out.setValue(''); eds.out.updateOptions({ readOnly: true }); }
     if (eds.xml) clearAllMarkers();
     if (typeof clearXPathResults === 'function') clearXPathResults();
@@ -144,7 +153,8 @@ function clearSavedState() {
 
   } else {
     // ── XSLT mode reset — full reset, stay in XSLT ──
-    if (eds.xml)  { _suppressNextSave = true; eds.xml.setValue(EXAMPLES.identityTransform.xml); }
+    // Reset the XSLT model directly (no suppression needed — inactive model won't trigger editor listeners)
+    if (xmlModelXslt) xmlModelXslt.setValue(EXAMPLES.identityTransform.xml);
     if (eds.xslt) { _suppressNextSave = true; eds.xslt.setValue(EXAMPLES.identityTransform.xslt); }
     _suppressNextSave = false;
     if (eds.out)  { monaco.editor.setModelLanguage(eds.out.getModel(), 'xml'); const _b=document.getElementById('outLangBadge'); const _d=document.getElementById('outDownloadBtn'); if(_b)_b.textContent='XML'; if(_d){_d.title='Download output as XML';_d.onclick=()=>downloadPane('out','output.xml');} eds.out.updateOptions({ readOnly: false }); eds.out.setValue(''); eds.out.updateOptions({ readOnly: true }); }
