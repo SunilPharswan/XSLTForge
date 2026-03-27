@@ -190,18 +190,28 @@ The `.github/agents/` folder is available for future custom agent modes.
 
 ## References
 
-### Internal Documentation
-- **Complete Feature Inventory**: [.github/instructions/features.instructions.md](instructions/features.instructions.md) — 200+ features, API reference, function locations
-- **CPI Simulation Details**: [.github/instructions/transform.instructions.md](instructions/transform.instructions.md) — CPI rewriting, error line mapping
-- **Example Library Structure**: [.github/instructions/examples-data.instructions.md](instructions/examples-data.instructions.md) — Categories, example format
-- **User Documentation**: [README.md](../README.md) — Full feature docs, getting started
+### User & Developer Documentation
+- **[README.md](../README.md)** — Full feature overview, getting started, keyboard shortcuts, common workflows
+- **[CONTRIBUTING.md](../CONTRIBUTING.md)** — PR process, code style guide, testing checklist, setup for local development
+- **[ARCHITECTURE.md](../ARCHITECTURE.md)** — Module structure, data flow, design patterns, namespace guidelines
+- **[.github/DEVELOPMENT.md](.github/DEVELOPMENT.md)** — Local dev workflow, debugging in browser, troubleshooting
 
-### Project Configuration  
-- Cloudflare Workers: [wrangler.jsonc](../wrangler.jsonc)
-- Cache policy: [_headers](../_headers)
-- SPA routing: [_redirects](../_redirects)
-- Example library: [examples-data.js](../js/examples-data.js)
+### Developer API Reference
+- **[.github/instructions/features.instructions.md](instructions/features.instructions.md)** — 200+ feature catalog, function locations, API patterns
+- **[.github/instructions/examples-data.instructions.md](instructions/examples-data.instructions.md)** — Example library structure, format validation rules
+- **[.github/instructions/transform.instructions.md](instructions/transform.instructions.md)** — CPI simulation deep dive, error line mapping
+
+### Specialized Tools
+- **[.github/skills/example-validator/](skills/example-validator/)** — Audit all 47 examples for correctness
+- **[.github/skills/xslt-example/](skills/xslt-example/)** — Create new XSLT/XPath examples
+- **[.github/prompts/](prompts/)** — Interactive prompts for adding/validating examples
+
+### Project Configuration
+- **[wrangler.jsonc](../wrangler.jsonc)** — Cloudflare Workers deployment config
+- **[_headers](../_headers)** — HTTP cache rules (no-store for app code, 7-day cache for vendor libs)
+- **[_redirects](../_redirects)** — SPA routing fallback (all 404s → index.html)
 
 ### External APIs
-- Saxon-JS docs: https://www.saxonica.com/saxon-js/documentation/
-- Monaco Editor API: https://microsoft.github.io/monaco-editor/api/
+- **Saxon-JS docs**: https://www.saxonica.com/saxon-js/documentation/
+- **Monaco Editor API**: https://microsoft.github.io/monaco-editor/api/
+- **Cloudflare Pages docs**: https://developers.cloudflare.com/pages/
