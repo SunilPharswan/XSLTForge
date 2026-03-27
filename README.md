@@ -15,10 +15,13 @@
 - [Getting Started](#getting-started)
 - [Quick Start Tutorial](#quick-start-tutorial)
 - [Common Workflows](#common-workflows)
+- [Architecture Overview](#architecture-overview)
 - [Deployment](#deployment)
+- [Development Guide](#development-guide)
 - [Contributing](#contributing)
 - [FAQ](#faq)
 - [Troubleshooting](#troubleshooting)
+- [Advanced Debugging](#advanced-debugging)
 - [Browser Compatibility](#browser-compatibility)
 - [Known Limitations](#known-limitations)
 - [License](#license)
@@ -318,6 +321,157 @@ No build step. No `npm install`. No server required.
 
 ## Deployment
 
+Hosted on **Cloudflare Pages** at [xsltdebugx.pages.dev](https://xsltdebugx.pages.dev). Every push to `main` auto-deploys via GitHub integration.
+
+### Cloudflare Pages Setup
+
+1. **GitHub Integration**
+   - Connect GitHub repo (CloudflarePages app authorizes GitHub)
+   - Select `main` (or `master`) branch for deployments
+
+2. **Build Configuration**
+   - Framework preset: **None** (static site)
+   - Build command: (leave empty)
+   - Output directory: `/` (serve root directory)
+   - Environment variables: (none required)
+
+3. **Domain Configuration**
+   - Apex domain: `xsltdebugx.pages.dev` (auto-assigned)
+   - Custom domain (optional): `xsltdebugx.com` (via CNAME)
+
+### Cache Strategy
+
+Cloudflare Pages respects HTTP cache headers defined in `_headers` file:
+
+**Application Code** (`no-store` — always fresh)
+```
+/index.html
+/css/*
+/js/*.js (except vendor)
+```
+- `Cache-Control: no-store`
+- Ensures users always get the latest code
+- No service worker cache (immediate updates on new releases)
+
+**Vendor Libraries** (7-day cache)
+```
+/lib/SaxonJS2.js
+```
+- `Cache-Control: public, max-age=604800`
+- Bundles Saxon locally; safe to cache long-term
+- If Saxon-JS version updates, bump `lib/SaxonJS2.js` version in JS and increment cache-buster query param
+
+### Single-Page App (SPA) Routing
+
+Cloudflare Pages uses `_redirects` file for SPA fallback:
+
+```
+# SPA fallback — all unmatched requests serve index.html
+/*  /index.html  200
+```
+
+This allows:
+- `/` → index.html (default)
+- `/docs/guide` → index.html (404 fallback, app handles routing)
+- `/lib/SaxonJS2.js` → actual file (pattern doesn't match wildcards in subdirs)
+
+### Release Checklist
+
+Before pushing to `main`:
+
+1. **Update version** in `README.md`
+2. **Update CHANGELOG.md** with all changes, version tag, date
+3. **Run example validator** — ensure all 47 examples pass checks
+4. **Test all features** — click through each category/workflow in the browser
+5. **Clear old sessions** — remove `xdebugx-session-v1*` test data from localStorage
+6. **Check bundle size** — `lib/SaxonJS2.js` should be ~10-12MB (minified)
+7. **Verify links** — all internal links in docs point to correct files
+8. **Create GitHub release** — tag version, attach any build artifacts
+
+### CDN Dependencies
+
+| Resource | URL | License | Impact |
+|---|---|---|---|
+| Monaco Editor | `cdn.jsdelivr.net/npm/monaco-editor@0.44.0` | MIT | Required for code editing; fails gracefully if CDN unavailable (basic textarea fallback) |
+| Pako | `cdnjs.cloudflare.com/ajax/libs/pako/2.1.0` | MIT | Used for URL compression in Share feature only; optional |
+| JetBrains Mono | `fonts.googleapis.com` | OFL-1.1 | Font fallback to system monospace if unavailable |
+| Saxon-JS 2.x | Local: `lib/SaxonJS2.js` | MPL-2.0 | Required — bundled locally, no CDN risk |
+
+### Performance & Analytics
+
+- **Page load time**: ~1.5s on typical broadband (Monaco init + Saxon parsing)
+- **Transform execution**: 50ms–5s depending on input size/complexity (JavaScript execution, not compiled)
+- **Local Storage**: ~50KB typical session size
+- **Share URL length**: ~1,500–2,000 chars (browser limit ~8,000 chars; safe margin)
+
+Analytics via [GoatCounter](https://www.goatcounter.com) (privacy-friendly, no cookies, blocked by ad blockers). Not loaded on `localhost` or `file://`.
+
+---
+
+## Development Guide
+
+XSLTDebugX is **zero-build** — no npm scripts, no bundler, no build step. Edit files → refresh browser → see changes.
+
+### Local Development Setup
+
+1. **Clone repository**
+   ```bash
+   git clone https://github.com/yourusername/xsltdebugx.git
+   cd xsltdebugx
+   ```
+
+2. **Start local HTTP server** (choose one):
+   - **`python -m http.server 8000`** (built-in)
+   - **`npm install -g serve && serve .`** (recommended)
+   - **`php -S localhost:8000`** (if PHP installed)
+   - **VS Code Live Server** extension (right-click `index.html`)
+
+3. **Open in browser** and verify:
+   - No console errors (DevTools → Console)
+   - Examples load and run correctly
+   - Can toggle XSLT ↔ XPath modes
+
+### Development Workflow
+
+- **Edit any `.js`, `.css`, or `.html` file**
+- **Refresh browser** (`Ctrl+R`)
+- **See changes immediately** (no build step!)
+- **Check DevTools Console** for errors
+
+### Testing Checklist
+
+Before committing:
+
+- [ ] Feature works in XSLT mode
+- [ ] Feature works in XPath mode (if applicable)
+- [ ] localStorage persists correctly after refresh
+- [ ] Theme toggle works (dark/light swap)
+- [ ] No errors in DevTools Console
+- [ ] Examples library loads without errors
+- [ ] Responsive layout tested on mobile/tablet
+- [ ] Keyboard shortcuts work
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full testing checklist, code style guide, and PR process.
+
+### Code Style
+
+**JavaScript:**
+- ES6+ (`const`, `let`, arrow functions)
+- `_privateFunction()` prefix for internal helpers
+- Emoji section dividers: `// ════════ SECTION ════════`
+- Inline comments for complex logic only
+
+**CSS:**
+- Hyphens for class names: `.pane-bar`, `.xf-error-glyph`
+- Prefix: `.xf-*` = editor/validation, `.xpath-*` = XPath-specific
+- Theme colors defined in `editor.js` theme objects
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for complete code style guide.
+
+---
+
+## Deployment
+
 Hosted on **Cloudflare Pages** at [xsltdebugx.pages.dev](https://xsltdebugx.pages.dev). Every push to `main` auto-deploys.
 
 ### Cloudflare Pages setup
@@ -336,6 +490,72 @@ Hosted on **Cloudflare Pages** at [xsltdebugx.pages.dev](https://xsltdebugx.page
 | JetBrains Mono | `fonts.googleapis.com` |
 
 Saxon-JS is bundled locally in `lib/SaxonJS2.js` — no CDN dependency.
+
+---
+
+## Project Structure
+
+```
+XSLTDebugX/
+├── favicon.svg
+├── index.html              # App shell — layout, modals, script tags
+├── css/
+│   └── style.css           # All styles, themes (light/dark), component CSS
+├── js/
+│   ├── state.js            # Global state, console, status bar, localStorage
+│   ├── validate.js         # XML validation, Monaco markers
+│   ├── panes.js            # clearPane, copyPane, prettyXML, fmtEditor, toggleWordWrap
+│   ├── transform.js        # CPI simulation, KV panels, runTransform
+│   ├── examples-data.js    # CATEGORIES object + 47 built-in examples
+│   ├── modal.js            # Examples library, dynamic sidebar, loadExample
+│   ├── files.js            # Upload, download, drag-and-drop
+│   ├── ui.js               # Column collapse, console, theme toggle, help modal
+│   ├── share.js            # Share URL encode/decode
+│   ├── xpath.js            # XPath evaluator, expression colorization, history, highlighting, mode toggle
+│   └── editor.js           # Monaco init, context menu, cursor stat, session restore
+└── lib/
+    └── SaxonJS2.js         # Saxon-JS 2.x (bundled, no CDN)
+```
+
+---
+
+## Architecture Overview
+
+XSLTDebugX uses a **zero-build vanilla JavaScript architecture** with 11 modules (~4,825 lines of code) and no external dependencies.
+
+### Key Design Principles
+
+- **Modular but global** — Each module owns one domain; all state lives in global namespace (no module system)
+- **Strict load order** — Dependencies explicit; load order critical → enforced in `index.html`
+- **Event-driven** — Monaco editor, button clicks, keyboard shortcuts all trigger state changes
+- **Debounced for performance** — Validation and persistence debounced 800ms to avoid freezing on rapid keystroke
+- **Dual XML models** — Separate `xmlModelXslt` and `xmlModelXpath` prevent mode-switching issues
+
+### Module Dependencies
+
+```
+state.js (global state, clog, localStorage)
+  ↓
+editor.js (Monaco init) → transform.js → validate.js → xpath.js → panes.js 
+                                                              ↓
+                                                        files.js, share.js, modal.js, ui.js
+```
+
+All modules must load before first user interaction. See [ARCHITECTURE.md](ARCHITECTURE.md) for complete module reference, data flow diagrams, and design patterns.
+
+### Data Flow Example: Running an XSLT Transform
+
+1. User clicks **Run XSLT** button
+2. `runTransform()` reads XML and XSLT from editors
+3. `preflight()` validates both inputs; marks errors if invalid
+4. If CPI calls detected → `rewriteCPICalls()` converts `xmlns:cpi` to `xmlns:js:saxonica` namespace
+5. `buildParamsXPath()` builds param map from Headers/Properties panels
+6. `SaxonJS.XPath.evaluate()` executes transform
+7. Intercept `console.log` to capture `xsl:message` output
+8. `renderOutputKV()` displays output, headers, properties
+9. Auto-save triggers (debounced 800ms)
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for full data flow diagrams, namespace guidelines, and design pattern explanations.
 
 ---
 
@@ -497,6 +717,155 @@ Check `exclude-result-prefixes="cpi xs"` in your stylesheet declaration. Namespa
 **Fix:**
 - Use **Share** button before closing to get a URL backup
 - Or **Download** each pane to save locally
+
+---
+
+## Advanced Debugging
+
+### Browser DevTools Integration
+
+**Opening DevTools:**
+- Windows/Linux: `F12` or `Ctrl+Shift+I`
+- macOS: `Cmd+Option+I`
+
+**Inspect Global State** (in DevTools Console):
+
+```javascript
+// Check editor content
+eds.xml.getValue()                    // Current XML input
+eds.xslt.getValue()                   // Current XSLT
+eds.out.getValue()                    // Current output
+
+// Check application state
+xpathEnabled                          // true = XPath mode, false = XSLT mode
+kvData                                // Headers and properties
+saxonReady                            // Is Saxon-JS loaded?
+
+// Check stored session
+JSON.parse(localStorage.getItem('xdebugx-session-v1'))
+
+// Check XPath history
+_xpathHistory                         // Last 20 expressions
+_xpathHistoryCursor                   // Current position in history
+
+// Manually trigger save
+persistSession()                      // Force save to localStorage
+```
+
+### Performance Profiling
+
+**Measure transform execution time:**
+
+```javascript
+// In console before running transform
+console.time('MyTransform');
+// ... click Run XSLT ...
+console.timeEnd('MyTransform');       // Logs elapsed ms including Saxon parsing
+```
+
+**Profile large operations** in DevTools → Performance tab:
+1. Click **Record**
+2. Click **Run XSLT** or **Run XPath**
+3. Click **Stop**
+4. Analyze flame chart for bottlenecks
+
+### Clearing Sessions & Cache
+
+**Reset XPath history:**
+```javascript
+localStorage.removeItem('xdebugx-xpath-history');
+location.reload();
+```
+
+**Clear all session data:**
+```javascript
+localStorage.removeItem('xdebugx-session-v1');
+location.reload();
+```
+
+**Clear specific header/property:**
+```javascript
+kvData.headers.splice(kvData.headers.findIndex(r => r.name === 'X-MyHeader'), 1);
+persistSession();
+```
+
+### Network Inspection
+
+**Check loaded resources** (DevTools → Network tab):
+
+| Resource | Expected | Status |
+|---|---|---|
+| `index.html` | 200 | HTML shell |
+| `css/style.css` | 200 | All styling |
+| `js/*.js` | 200 | All modules |
+| `lib/SaxonJS2.js` | 200 | Transform engine |
+| `monaco-editor@0.44.0` | 200 or cached | Code editor |
+
+**If CDN blocked:**
+- Check Content Security Policy (DevTools → Console for CSP errors)
+- Try opening in private/incognito mode (disables extensions that might block)
+- Try different browser or network
+
+### Monaco Editor Debugging
+
+**Inspect active editor:**
+```javascript
+// Get active pane model
+eds.xml.getModel()                    // XML model + content
+eds.xslt.getModel()                   // XSLT model + content
+eds.out.getModel()                    // Output model
+
+// Get cursor position
+const pos = eds.xml.getPosition();     // { lineNumber, column }
+
+// Count lines
+eds.xml.getModel().getLineCount();    // Total lines in editor
+
+// Get all decorations
+eds.xml
+  .getModel()
+  .deltaDecorations([], [])           // Returns all current decorations
+```
+
+### Saxon-JS Debugging
+
+**Check Saxon load status:**
+
+```javascript
+// Before first transform
+typeof SaxonJS                        // Should be 'object'
+SaxonJS.version                       // Check version
+
+// Trap Saxon errors
+try {
+  const result = SaxonJS.XPath.evaluate('invalid[[[', []);
+} catch(e) {
+  console.log('Saxon error:', e.message);
+}
+```
+
+**Test specific XPath:**
+
+```javascript
+const xml = `<Root><Item id="1">A</Item></Root>`;
+const doc = SaxonJS.XPath.evaluate('parse-xml($src)', [], { params: { src: xml } });
+const result = SaxonJS.XPath.evaluate('//Item[@id="1"]', doc);
+console.log(result);                  // Array of matched nodes
+```
+
+### CPI Simulation Tracing
+
+**Check what gets captured:**
+
+```javascript
+// During or after a transform run
+console.log('cpiCaptured.headers:', cpiCaptured.headers);
+console.log('cpiCaptured.properties:', cpiCaptured.properties);
+
+// Check what was rewritten
+console.log('Original XSLT had CPI calls');
+// Look for "CPI extension calls detected" message in console
+```
 
 ---
 
