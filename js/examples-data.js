@@ -2131,6 +2131,9 @@ const EXAMPLES = {
 
   <xsl:param name="exchange"/>
 
+  <!--
+    Conditional Routing Header Setting.
+    
     A common CPI pattern: inspect the payload and set message headers
     that downstream Router steps use to decide which branch to take.
 
