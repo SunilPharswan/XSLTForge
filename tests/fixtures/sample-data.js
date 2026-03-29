@@ -215,6 +215,120 @@ export const sampleData = {
       </xsl:for-each>
     </items>
   </xsl:template>
+</xsl:stylesheet>`,
+
+  // ============ CPI SIMULATION: Headers & Properties ============
+
+  cpiWithSetHeader: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:cpi="http://sap.com/cpi">
+  <xsl:template match="/">
+    <response>
+      <xsl:copy-of select="cpi:setHeader('X-Custom-Header', 'TestValue')"/>
+      <data>
+        <xsl:value-of select="//user[1]/name"/>
+      </data>
+    </response>
+  </xsl:template>
+</xsl:stylesheet>`,
+
+  cpiWithMultipleHeaders: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:cpi="http://sap.com/cpi">
+  <xsl:param name="authToken" select="'default-token'"/>
+  <xsl:param name="environment" select="'dev'"/>
+  
+  <xsl:template match="/">
+    <response>
+      <xsl:copy-of select="cpi:setHeader('Authorization', $authToken)"/>
+      <xsl:copy-of select="cpi:setHeader('X-Environment', $environment)"/>
+      <xsl:copy-of select="cpi:setProperty('ProcessingStatus', 'COMPLETED')"/>
+      <body>
+        <xsl:value-of select="count(//user)"/> users processed
+      </body>
+    </response>
+  </xsl:template>
+</xsl:stylesheet>`,
+
+  cpiGetHeaderXslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:cpi="http://sap.com/cpi">
+  <xsl:template match="/">
+    <result>
+      <received-header>
+        <xsl:value-of select="cpi:getHeader('Authorization')"/>
+      </received-header>
+      <received-property>
+        <xsl:value-of select="cpi:getProperty('ProcessingMode')"/>
+      </received-property>
+      <data>
+        <xsl:for-each select="//user">
+          <user><xsl:value-of select="name"/></user>
+        </xsl:for-each>
+      </data>
+    </result>
+  </xsl:template>
+</xsl:stylesheet>`,
+
+  // ============ LARGE PAYLOAD (for share URL testing) ============
+
+  generateLargeXslt(lines = 50) {
+    let xslt = `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template match="/">
+    <results>`;
+    
+    for (let i = 1; i <= lines; i++) {
+      xslt += `
+      <item id="${i}">
+        <value>Item ${i} - Data processing line</value>
+        <description>Description for item ${i}</description>
+      </item>`;
+    }
+    
+    xslt += `
+    </results>
+  </xsl:template>
+</xsl:stylesheet>`;
+    
+    return xslt;
+  },
+
+  // ============ SAP CPI IDoc EXAMPLE ============
+
+  idocXml: `<?xml version="1.0" encoding="UTF-8"?>
+<IDOC BEGIN="1" SEGMENT="EDI_DC40">
+  <EDI_DC40 SEGMENT="1">
+    <TABNAM>EDI_DC40</TABNAM>
+    <MANDT>100</MANDT>
+    <DOCNUM>0000000001234567</DOCNUM>
+    <DOCREL>700</DOCREL>
+    <STATUS>03</STATUS>
+    <DIRECT>1</DIRECT>
+    <OUTMOD>2</OUTMOD>
+    <IDOCTYP>ORDERS01</IDOCTYP>
+  </EDI_DC40>
+  <E1EDK01 SEGMENT="1">
+    <EBELN>4500000001</EBELN>
+    <ERDAT>20230315</ERDAT>
+    <ERNAM>TESTUSER</ERNAM>
+  </E1EDK01>
+</IDOC>`,
+
+  idocTransformXslt: `<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:cpi="http://sap.com/cpi">
+  <xsl:template match="/">
+    <xsl:copy-of select="cpi:setHeader('SAP_Document_Type', 'IDoc')"/>
+    <xsl:copy-of select="cpi:setProperty('IDOCTYP', //IDOCTYP)"/>
+    <Order>
+      <DocumentNumber><xsl:value-of select="//DOCNUM"/></DocumentNumber>
+      <PurchaseOrder><xsl:value-of select="//EBELN"/></PurchaseOrder>
+      <CreatedDate><xsl:value-of select="//ERDAT"/></CreatedDate>
+      <CreatedBy><xsl:value-of select="//ERNAM"/></CreatedBy>
+      <ProcessingStatus>Received</ProcessingStatus>
+    </Order>
+  </xsl:template>
 </xsl:stylesheet>`
 };
 

@@ -30,6 +30,13 @@ export class EditorPage {
   }
 
   /**
+   * Wait for debounced state persistence to complete (800ms + 200ms buffer)
+   */
+  async waitForDebounce() {
+    await this.page.waitForTimeout(1000);
+  }
+
+  /**
    * Get XML editor content
    */
   async getXmlContent() {
@@ -190,14 +197,6 @@ export class EditorPage {
   }
 
   /**
-   * Open examples modal
-   */
-  async openExamplesModal() {
-    await this.page.click(this.examplesButton);
-    await this.page.waitForSelector('[role="dialog"]', { state: 'visible', timeout: 5000 });
-  }
-
-  /**
    * Toggle theme
    */
   async toggleTheme() {
@@ -278,6 +277,317 @@ export class EditorPage {
    */
   async waitForOutput() {
     await this.page.waitForTimeout(2000);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CPI SIMULATION: Headers & Properties Panel Methods
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Add a header to the Headers panel
+   * @param {string} name - Header name
+   * @param {string} value - Header value
+   */
+  async addHeader(name, value) {
+    // Click the + button in Headers panel
+    await this.page.click('#hdrPanel button.kv-add-btn');
+    await this.page.waitForTimeout(300);
+
+    // Get the newly added row wrapper
+    const rows = await this.page.locator('#hdrRows .kv-row-wrapper').count();
+    const rowIndex = rows - 1; // Last row is the new one
+
+    // Fill name and value inputs in the row
+    const nameInput = this.page.locator('#hdrRows .kv-row-wrapper').nth(rowIndex).locator('input').nth(0);
+    const valueInput = this.page.locator('#hdrRows .kv-row-wrapper').nth(rowIndex).locator('input').nth(1);
+
+    await nameInput.fill(name);
+    await valueInput.fill(value);
+    // Wait for debounced save to complete
+    await this.waitForDebounce();
+  }
+
+  /**
+   * Update an existing header by index
+   * @param {number} index - Row index (0-based)
+   * @param {string} name - New header name
+   * @param {string} value - New header value
+   */
+  async updateHeader(index, name, value) {
+    const nameInput = this.page.locator('#hdrRows .kv-row-wrapper').nth(index).locator('input').nth(0);
+    const valueInput = this.page.locator('#hdrRows .kv-row-wrapper').nth(index).locator('input').nth(1);
+
+    await nameInput.clear();
+    await nameInput.fill(name);
+    await valueInput.clear();
+    await valueInput.fill(value);
+    // Wait for debounced save to complete
+    await this.waitForDebounce();
+  }
+
+  /**
+   * Delete a header by index
+   * @param {number} index - Row index (0-based)
+   */
+  async deleteHeader(index) {
+    const deleteBtn = this.page.locator('#hdrRows .kv-row-wrapper').nth(index).locator('button.kv-del-btn');
+    await deleteBtn.click();
+    // Wait for debounced save to complete
+    await this.waitForDebounce();
+  }
+
+  /**
+   * Add a property to the Properties panel
+   * @param {string} name - Property name
+   * @param {string} value - Property value
+   */
+  async addProperty(name, value) {
+    // Click the + button in Properties panel
+    await this.page.click('#propPanel button.kv-add-btn');
+    await this.page.waitForTimeout(300);
+
+    // Get the newly added row wrapper
+    const rows = await this.page.locator('#propRows .kv-row-wrapper').count();
+    const rowIndex = rows - 1;
+
+    const nameInput = this.page.locator('#propRows .kv-row-wrapper').nth(rowIndex).locator('input').nth(0);
+    const valueInput = this.page.locator('#propRows .kv-row-wrapper').nth(rowIndex).locator('input').nth(1);
+
+    await nameInput.fill(name);
+    await valueInput.fill(value);
+    // Wait for debounced save to complete
+    await this.waitForDebounce();
+  }
+
+  /**
+   * Update an existing property by index
+   * @param {number} index - Row index (0-based)
+   * @param {string} name - New property name
+   * @param {string} value - New property value
+   */
+  async updateProperty(index, name, value) {
+    const nameInput = this.page.locator('#propRows .kv-row-wrapper').nth(index).locator('input').nth(0);
+    const valueInput = this.page.locator('#propRows .kv-row-wrapper').nth(index).locator('input').nth(1);
+
+    await nameInput.clear();
+    await nameInput.fill(name);
+    await valueInput.clear();
+    await valueInput.fill(value);
+    // Wait for debounced save to complete
+    await this.waitForDebounce();
+  }
+
+  /**
+   * Delete a property by index
+   * @param {number} index - Row index (0-based)
+   */
+  async deleteProperty(index) {
+    const deleteBtn = this.page.locator('#propRows .kv-row-wrapper').nth(index).locator('button.kv-del-btn');
+    await deleteBtn.click();
+    // Wait for debounced save to complete
+    await this.waitForDebounce();
+  }
+
+  /**
+   * Read output headers from the Output Headers panel
+   * @returns {Array<{name: string, value: string}>}
+   */
+  async readOutputHeaders() {
+    return await this.page.evaluate(() => {
+      const rows = document.querySelectorAll('#outHdrRows .kv-row');
+      return Array.from(rows).map(row => ({
+        name: row.children[0]?.textContent?.trim() || '',
+        value: row.children[1]?.textContent?.trim() || ''
+      }));
+    });
+  }
+
+  /**
+   * Read output properties from the Output Properties panel
+   * @returns {Array<{name: string, value: string}>}
+   */
+  async readOutputProperties() {
+    return await this.page.evaluate(() => {
+      const rows = document.querySelectorAll('#outPropRows .kv-row');
+      return Array.from(rows).map(row => ({
+        name: row.children[0]?.textContent?.trim() || '',
+        value: row.children[1]?.textContent?.trim() || ''
+      }));
+    });
+  }
+
+  /**
+   * Get the current header count badge
+   */
+  async getHeaderCount() {
+    const count = await this.page.locator('#hdrCount').textContent();
+    return parseInt(count) || 0;
+  }
+
+  /**
+   * Get the current property count badge
+   */
+  async getPropertyCount() {
+    const count = await this.page.locator('#propCount').textContent();
+    return parseInt(count) || 0;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EXAMPLES LIBRARY: Modal & Load Methods
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Open Examples modal (if not already open)
+   */
+  async openExamplesModal() {
+    await this.page.click(this.examplesButton);
+    await this.page.waitForSelector('#exModalBackdrop.open', { timeout: 5000 });
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * Close Examples modal
+   */
+  async closeExamplesModal() {
+    const backdrop = this.page.locator('#exModalBackdrop');
+    if (await backdrop.evaluate(el => el.classList.contains('open'))) {
+      await backdrop.click();
+      await this.page.waitForTimeout(500);
+    }
+  }
+
+  /**
+   * Search examples by keyword
+   * @param {string} query - Search query text
+   */
+  async searchExamples(query) {
+    const searchInput = this.page.locator('#exModalSearch');
+    if (await searchInput.isVisible().catch(() => false)) {
+      await searchInput.fill(query);
+      await this.page.waitForTimeout(800); // Debounce time for filter
+    }
+  }
+
+  /**
+   * Load an example by key
+   * @param {string} exampleKey - Example key from EXAMPLES object
+   */
+  async loadExample(exampleKey) {
+    // Call the loadExample function directly via page.evaluate
+    await this.page.evaluate((key) => {
+      if (typeof window.loadExample === 'function') {
+        window.loadExample(key);
+      }
+    }, exampleKey);
+    // Wait for modal to close and content to load
+    await this.page.waitForTimeout(1500);
+  }
+
+  /**
+   * Set auto-run checkbox for examples
+   * @param {boolean} enabled - Whether to enable auto-run
+   */
+  async setAutoRunExamples(enabled) {
+    const checkbox = this.page.locator('#exAutoRunCheckbox');
+    const isChecked = await checkbox.isChecked().catch(() => false);
+
+    if (isChecked !== enabled) {
+      await checkbox.click();
+      await this.page.waitForTimeout(500);
+    }
+  }
+
+  /**
+   * Get the currently filtered example count
+   */
+  async getExampleCount() {
+    const text = await this.page.locator('#exModalCount').textContent().catch(() => '0');
+    return parseInt(text.replace(/\D/g, '')) || 0;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SHARE URL: Generation & Loading Methods
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Generate a share URL from current editor state
+   * @returns {string} The generated share URL
+   */
+  async generateShareUrl() {
+    // Ensure modal is closed first
+    await this.closeShareModal();
+    await this.page.waitForTimeout(300);
+
+    // Open share modal
+    await this.page.click(this.shareButton);
+    await this.page.waitForSelector('#shareModalBackdrop.open', { timeout: 5000 });
+    await this.page.waitForTimeout(500);
+
+    // Get URL from input field
+    const urlInput = this.page.locator('#shareUrlInput');
+    const url = await urlInput.inputValue();
+
+    return url;
+  }
+
+  /**
+   * Check if share URL generation shows a length warning
+   * @returns {boolean} True if warning is visible
+   */
+  async hasShareUrlWarning() {
+    // Close and reopen to generate fresh (warnings appear on generation)
+    await this.page.waitForTimeout(200);
+    const warning = this.page.locator('.share-modal .share-warning, .share-modal-body > .warning');
+    return await warning.isVisible().catch(() => false);
+  }
+
+  /**
+   * Get the generated share URL length
+   * @returns {number} URL string length
+   */
+  async getShareUrlLength() {
+    const url = await this.generateShareUrl();
+    return url?.length || 0;
+  }
+
+  /**
+   * Close share modal
+   */
+  async closeShareModal() {
+    const backdrop = this.page.locator('#shareModalBackdrop');
+    try {
+      const isOpen = await backdrop.evaluate(el => el.classList.contains('open')).catch(() => false);
+      if (isOpen) {
+        // Use Escape key to close modal (more reliable than clicking backdrop)
+        await this.page.keyboard.press('Escape');
+        await this.page.waitForTimeout(600);
+      }
+    } catch (err) {
+      // Ignore errors during close attempt
+    }
+  }
+
+  /**
+   * Load application state from a share URL (navigate to it)
+   * @param {string} shareUrl - Full share URL with hash
+   */
+  async loadFromShareUrl(shareUrl) {
+    await this.page.goto(shareUrl);
+    await this.page.waitForLoadState('networkidle');
+    // Wait for Monaco Editor to initialize
+    await this.page.waitForSelector('.monaco-editor', { timeout: 15000 });
+    // Wait for Saxon to process the shared data (applyShareData is called after Saxon ready)
+    await this.page.waitForTimeout(3000);
+  }
+
+  /**
+   * Check if pending share data is in the app state
+   * @returns {boolean} True if share data was detected
+   */
+  async hasPendingShareData() {
+    return await this.page.evaluate(() => {
+      return !!window._pendingShareData;
+    });
   }
 }
 
