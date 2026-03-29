@@ -69,6 +69,11 @@ function applyShareData(data) {
   clearTimeout(xmlDebounce);
   clearAllMarkers();
 
+  // Ensure XML editor is connected to XSLT model before updating
+  if (eds.xml && xmlModelXslt) {
+    eds.xml.setModel(xmlModelXslt);
+  }
+
   // Write directly to XSLT model (share is always XSLT context)
   if (data.xml  !== undefined) xmlModelXslt?.setValue(data.xml);
   if (data.xslt !== undefined) {
