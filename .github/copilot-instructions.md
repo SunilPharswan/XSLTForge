@@ -10,7 +10,7 @@
 
 ## Tech Stack
 
-- **Vanilla JavaScript ES6+** — 11 modules (~7,261 lines), global namespace, no framework
+- **Vanilla JavaScript ES6+** — 12 modules (~6,873 lines), global namespace, no framework
 - **Monaco Editor 0.44.0** — CDN-loaded, custom dark/light themes
 - **Saxon-JS 2.7** — bundled XSLT 3.0 + XPath 3.1 processor (`lib/SaxonJS2.js`)
 - **Cloudflare Workers** — deployment via `wrangler.jsonc`, cache rules in `_headers`, SPA routing in `_redirects`
@@ -190,11 +190,15 @@ The `.github/agents/` folder is available for future custom agent modes.
 
 ## References
 
+### Master Documentation Index
+- **[.github/docs/README.md](docs/README.md)** — Master documentation map and navigation hub, organized by category and role
+
 ### User & Developer Documentation
 - **[README.md](../README.md)** — Full feature overview, getting started, keyboard shortcuts, common workflows
 - **[CONTRIBUTING.md](../CONTRIBUTING.md)** — PR process, code style guide, testing checklist, setup for local development
-- **[ARCHITECTURE.md](../ARCHITECTURE.md)** — Module structure, data flow, design patterns, namespace guidelines
-- **[.github/DEVELOPMENT.md](.github/DEVELOPMENT.md)** — Local dev workflow, debugging in browser, troubleshooting
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — Module structure, data flow, design patterns, namespace guidelines
+- **[.github/docs/DEVELOPMENT.md](.github/docs/DEVELOPMENT.md)** — Local dev workflow, debugging in browser, troubleshooting
+- **[.github/docs/TESTING.md](.github/docs/TESTING.md)** — E2E testing setup, Playwright patterns, fixture structures, timing strategies
 
 ### Developer API Reference
 - **[.github/instructions/features.instructions.md](instructions/features.instructions.md)** — 200+ feature catalog, function locations, API patterns
@@ -202,7 +206,7 @@ The `.github/agents/` folder is available for future custom agent modes.
 - **[.github/instructions/transform.instructions.md](instructions/transform.instructions.md)** — CPI simulation deep dive, error line mapping
 
 ### Specialized Tools
-- **[.github/skills/example-validator/](skills/example-validator/)** — Audit all 47 examples for correctness
+- **[.github/skills/example-validator/](skills/example-validator/)** — Audit all 46 examples for correctness
 - **[.github/skills/xslt-example/](skills/xslt-example/)** — Create new XSLT/XPath examples
 - **[.github/prompts/](prompts/)** — Interactive prompts for adding/validating examples
 

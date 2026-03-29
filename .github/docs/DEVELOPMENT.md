@@ -444,5 +444,5 @@ XPath evaluation is generally fast, but large document selection can slow:
 ## Next Steps
 
 - Read [../../CONTRIBUTING.md](../../CONTRIBUTING.md) for code style and PR process
-- Read [../../ARCHITECTURE.md](../../ARCHITECTURE.md) for module structure and data flow
+- Read [ARCHITECTURE.md](ARCHITECTURE.md) for module structure and data flow
 - Check [../instructions/](../instructions/) for detailed API reference and CPI patterns

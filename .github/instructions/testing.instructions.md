@@ -6,7 +6,7 @@ applyTo: tests/**/*.spec.js, tests/utils/test-helpers.js, tests/fixtures/sample-
 
 # XSLTDebugX Test Suite — Complete Technical Guide
 
-> **For quick lookups:** See [tests/README.md](../../tests/README.md) — API cheatsheet, timing constants, common patterns, checklist.
+> **For practical examples:** See [docs/TESTING.md](../docs/TESTING.md) — Setup guide, patterns, structure templates, workflows.
 >
 > **This document:** Full architecture, design rationale, 50+ method inventory, advanced patterns, troubleshooting.
 
