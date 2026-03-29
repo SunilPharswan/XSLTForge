@@ -638,7 +638,7 @@ Check `exclude-result-prefixes="cpi xs"` in your stylesheet declaration. Namespa
 ### For Issues & Questions
 
 - Check [FAQ](#faq) section above
-- Search [GitHub Issues](https://github.com/SAP-samples/cloud-integration-xslt-debug/issues)
+- Search [GitHub Issues](https://github.com/SunilPharswan/XSLTDebugX/issues)
 - See [Browser Compatibility](#browser-compatibility) & [Known Limitations](#known-limitations)
 
 ---

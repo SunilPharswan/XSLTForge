@@ -26,8 +26,8 @@ Quick-start guide for local development, debugging, and testing XSLTDebugX.
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/xsltdebugx.git
-cd xsltdebugx
+git clone https://github.com/SunilPharswan/XSLTDebugX.git
+cd XSLTDebugX
 ```
 
 No `npm install` or build step needed — it's a zero-build static site.
