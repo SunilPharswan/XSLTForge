@@ -150,12 +150,6 @@ test.describe('Examples Library Workflow', () => {
     await page.openExamplesModal();
   });
 
-    // Check box should still be enabled
-    const checkbox = testPage.locator('#exAutoRunCheckbox');
-    const isChecked = await checkbox.isChecked().catch(() => false);
-    expect(isChecked).toBe(true);
-  });
-
   test('should auto-run example when preference is enabled', async ({ page: testPage }) => {
     // Enable auto-run before opening modal
     await page.openExamplesModal();

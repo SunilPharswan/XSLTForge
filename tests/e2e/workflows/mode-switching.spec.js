@@ -149,15 +149,6 @@ test.describe('Mode Switching', () => {
     expect(xpathXml).toBe(xml2);
   });
 
-    // Switch back to XSLT mode
-    await page.switchToXslt();
-    let xsltXml = await page.getXmlContent();
-
-    // Assert - should still have original XML from XSLT mode
-    // (This test may fail if mode doesn't maintain separate XML storage)
-    expect(xsltXml).toBe(xml1);
-  });
-
   test('should update mode indicator when button is clicked', async ({ page: testPage }) => {
     // Arrange
     await page.switchToXslt();
