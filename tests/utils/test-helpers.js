@@ -18,22 +18,22 @@ export class EditorPage {
   }
 
   /**
-   * Navigate to the application with aggressive timeout handling
+   * Navigate to the application with balanced timeout strategy
    * Uses 'domcontentloaded' for faster startup + explicit Monaco readiness check
-   * Handles resource contention on CI with long timeout + smart retry (via Playwright retries)
+   * Balances timeout coverage with overall test execution time (avoid cascading retries)
    */
   async navigate() {
-    // First: Navigate to page with 90s timeout
+    // First: Navigate to page with 60s timeout
     await this.page.goto('http://localhost:8000', { 
       waitUntil: 'domcontentloaded', 
-      timeout: 90000 
+      timeout: 60000 
     });
     
-    // Second: Wait for Monaco Editor DOM element with aggressive 90s timeout
-    // CI can be slow; 4 parallel workers compete for resources
+    // Second: Wait for Monaco Editor DOM element with 45s timeout
+    // This is the bottleneck when 4 workers compete for resources
     try {
       await this.page.waitForSelector('.monaco-editor', { 
-        timeout: 90000, 
+        timeout: 45000, 
         state: 'visible' 
       });
     } catch (e) {
@@ -44,7 +44,7 @@ export class EditorPage {
         window.monaco?.editor?.getEditors?.()?.length ?? 0
       );
       throw new Error(
-        `Monaco Editor failed to initialize after 90s. ` +
+        `Monaco Editor failed to initialize after 45s. ` +
         `DOM present: ${monacoPresent}, window.monaco ready: ${windowReady}, ` +
         `editors count: ${monacoEditors}. Playwright will retry this test. ` +
         `Original error: ${e.message}`

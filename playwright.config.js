@@ -15,11 +15,11 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code */
   forbidOnly: !!process.env.CI,
 
-  /* Enable retries on CI to handle transient timeouts */
-  retries: process.env.CI ? 2 : 0,
+  /* Enable retries on CI to handle occasional transient timeouts (but limit to 1 to avoid compounding delays) */
+  retries: process.env.CI ? 1 : 0,
 
-  /* Test timeout - increased aggressively for slow CI environments */
-  timeout: process.env.CI ? 120000 : 30000,
+  /* Test timeout - balanced for 4 workers (120s = 2 min per test * 223 tests / 4 workers ≈ 110 min without retries) */
+  timeout: process.env.CI ? 90000 : 30000,
 
   /* Keep 4 workers on CI for speed (tests take ~7 min with parallelization) */
   workers: process.env.CI ? 4 : 2,

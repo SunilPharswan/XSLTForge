@@ -34,7 +34,7 @@ jobs:
         run: npx playwright test --workers=4
         env:
           CI: true
-        timeout-minutes: 20
+        timeout-minutes: 25
 
       - name: Generate empty report if missing
         if: always()
