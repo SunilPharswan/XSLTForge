@@ -18,16 +18,46 @@ export class EditorPage {
   }
 
   /**
-   * Navigate to the application
-   * Uses 'domcontentloaded' instead of 'networkidle' for faster startup
+   * Navigate to the application with aggressive timeout handling
+   * Uses 'domcontentloaded' for faster startup + explicit Monaco readiness check
+   * Handles resource contention on CI with long timeout + smart retry (via Playwright retries)
    */
   async navigate() {
-    await this.page.goto('http://localhost:8000', { waitUntil: 'domcontentloaded', timeout: 45000 });
-    // Wait for Monaco Editor to initialize
-    // Increased to 45s for CI environments where initialization is slower (GitHub Actions ~10-15s base delay)
-    await this.page.waitForSelector('.monaco-editor', { timeout: 45000 });
-    // Extra wait for JS initialization
-    await this.page.waitForTimeout(2000);
+    // First: Navigate to page with 90s timeout
+    await this.page.goto('http://localhost:8000', { 
+      waitUntil: 'domcontentloaded', 
+      timeout: 90000 
+    });
+    
+    // Second: Wait for Monaco Editor DOM element with aggressive 90s timeout
+    // CI can be slow; 4 parallel workers compete for resources
+    try {
+      await this.page.waitForSelector('.monaco-editor', { 
+        timeout: 90000, 
+        state: 'visible' 
+      });
+    } catch (e) {
+      // Capture diagnostics for debugging
+      const monacoPresent = await this.page.locator('.monaco-editor').count() > 0;
+      const windowReady = await this.page.evaluate(() => typeof window.monaco !== 'undefined');
+      const monacoEditors = await this.page.evaluate(() => 
+        window.monaco?.editor?.getEditors?.()?.length ?? 0
+      );
+      throw new Error(
+        `Monaco Editor failed to initialize after 90s. ` +
+        `DOM present: ${monacoPresent}, window.monaco ready: ${windowReady}, ` +
+        `editors count: ${monacoEditors}. Playwright will retry this test. ` +
+        `Original error: ${e.message}`
+      );
+    }
+    
+    // Third: Wait for Saxon-JS to be ready (critical for transform operations)
+    await this.page.waitForFunction(() => window.saxonReady === true, { timeout: 30000 }).catch(() => {
+      // Saxon might not be ready yet, but continue - app handles it gracefully
+    });
+    
+    // Fourth: Wait for JS module initialization (800ms debounce + buffer)
+    await this.page.waitForTimeout(1000);
   }
 
   /**

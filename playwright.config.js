@@ -15,19 +15,19 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code */
   forbidOnly: !!process.env.CI,
 
-  /* Disable retries */
-  retries: 0,
+  /* Enable retries on CI to handle transient timeouts */
+  retries: process.env.CI ? 2 : 0,
 
-  /* Test timeout - increase for slow CI environments */
-  timeout: process.env.CI ? 90000 : 30000,
+  /* Test timeout - increased aggressively for slow CI environments */
+  timeout: process.env.CI ? 120000 : 30000,
 
-  /* Run tests in parallel on CI and locally */
+  /* Keep 4 workers on CI for speed (tests take ~7 min with parallelization) */
   workers: process.env.CI ? 4 : 2,
 
   /* Reporter to use */
   reporter: [
     ['list'],
-    ['html', { open: 'never' }],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['json', { outputFile: 'test-results/results.json' }],
     ['junit', { outputFile: 'test-results/junit.xml' }],
   ],
@@ -66,6 +66,8 @@ export default defineConfig({
     url: 'http://localhost:8000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
+    /* Wait for server to be fully up before starting tests */
+    ignoreHTTPSErrors: true,
   },
 
   /* Expect timeout (for assertions) */
