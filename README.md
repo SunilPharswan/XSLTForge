@@ -1,6 +1,6 @@
 # XSLTDebugX — SAP Cloud Integration XSLT IDE
 
-![XSLT 3.0](https://img.shields.io/badge/XSLT-3.0-blue?logo=w3c) ![XPath 3.1](https://img.shields.io/badge/XPath-3.1-blue) ![Saxon-JS](https://img.shields.io/badge/Saxon--JS-2.x-green) ![License](https://img.shields.io/badge/license-MIT-green) ![No Build](https://img.shields.io/badge/build-none-orange) ![Zero Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
+![XSLT 3.0](https://img.shields.io/badge/XSLT-3.0-blue?logo=w3c) ![XPath 3.1](https://img.shields.io/badge/XPath-3.1-blue) ![Saxon-JS](https://img.shields.io/badge/Saxon--JS-2.x-green) ![License](https://img.shields.io/badge/license-AGPL%203.0-blue) ![No Build](https://img.shields.io/badge/build-none-orange) ![Zero Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
 
 > A browser-based XSLT 3.0 IDE and XPath evaluator built specifically for SAP Cloud Integration (CPI) developers. Test and debug XSLT mappings and XPath expressions locally — with full CPI runtime simulation — before ever deploying to your tenant.
 
@@ -113,6 +113,34 @@ No build step. No `npm install`. No server required.
 - **46 Built-in Examples** — Example library across 5 categories (Data Transformation, Aggregation, Format Conversion, SAP CPI Patterns, XPath Explorer)
 - **Console Enhancements** — Search, type filtering, minimize/restore, auto-expand on errors, error/warning count badges
 - **XPath Mode Improvements** — Clickable hint chips, expression history (last 20), auto-growing input bar, namespace-agnostic examples
+
+---
+
+## Architecture & Dependencies
+
+XSLTDebugX is built for **zero friction** — no build step, no `npm install`, no server required. The "Zero Dependencies" badge refers to **zero npm package dependencies**. Here's what that means:
+
+### Dependency Model
+
+| Component | Type | Source | Impact |
+|-----------|------|--------|--------|
+| **Monaco Editor** | CDN | `cdn.jsdelivr.net` | Syntax highlighting, code editing |
+| **pako** (compression) | CDN | `cdnjs.cloudflare.com` | Share URL encoding/decoding |
+| **Saxon-JS 2.x** | Bundled | `/lib/SaxonJS2.js` (in repo) | XSLT 3.0 + XPath 3.1 processor |
+| **npm packages** | Development only | `@playwright/test`, `http-server` | E2E testing & local dev server |
+
+### What This Means
+
+✅ **No npm bloat in production** — App ships as-is, no `node_modules` build  
+✅ **Fast initial load** — Static files only, no bundler overhead  
+✅ **Simple deployment** — Drop on any static host (Cloudflare Pages, GitHub Pages, etc.)  
+✅ **Offline-capable** — Works fully offline once Monaco/pako cached; only requires pre-cached CDN resources  
+✅ **Zero build step** — Edit source, refresh browser. No webpack, no esbuild, no build time
+
+### CDN vs. Bundled
+
+- **CDN dependencies** (Monaco, pako) are **lightweight, external, cacheable** — loaded once and reused across browser sessions
+- **Bundled code** (Saxon-JS) is **baked into the repo** — always available, offline-ready, no external network call required for core XSLT processing
 
 ---
 
@@ -861,7 +889,7 @@ All developer paths flow back to [.github/docs/README.md](.github/docs/README.md
 
 ## License
 
-MIT — with an additional request that this software is not used for commercial purposes without prior written permission from the author. See [LICENSE](LICENSE) for full details.
+AGPL-3.0-or-later — see [LICENSE](LICENSE) for full details.
 
 ---
 
