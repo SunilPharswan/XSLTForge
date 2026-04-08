@@ -62,7 +62,9 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: process.env.CI ? 'npm run preview' : 'npm run serve',
+    command: process.env.TEST_SERVER === 'dist'
+      ? 'npx http-server dist/ -p 8000 -c-1 --silent'
+      : 'npm run serve',
     url: 'http://localhost:8000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,

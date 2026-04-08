@@ -38,6 +38,8 @@ jobs:
         run: npx playwright test --workers=4 --reporter=list
         env:
           CI: true
+          BASE_URL: http://localhost:8000
+          TEST_SERVER: dist
 
       - name: Upload test report
         if: always()
