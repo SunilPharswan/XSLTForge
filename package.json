@@ -2,6 +2,7 @@
   "name": "xsltdebugx",
   "version": "1.0.0",
   "description": "Browser-based XSLT/XPath IDE with CPI simulation",
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "type": "module",
   "scripts": {
