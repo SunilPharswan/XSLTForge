@@ -44,7 +44,7 @@ jobs:
         run: mkdir -p playwright-report test-results
 
       - name: Run E2E tests
-        run: npx playwright test --workers=4 --reporter=list
+        run: npx playwright test --workers=4
         env:
           CI: true
           BASE_URL: http://localhost:8000
