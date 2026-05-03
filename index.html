@@ -5,14 +5,101 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>XSLTDebugX — SAP Cloud Integration XSLT IDE</title>
+  <meta name="description" content="Free browser-based XSLT 3.0 and XPath 3.1 IDE for SAP Cloud Integration. Test XSLT transformations locally with CPI headers, properties, and extension functions — no deployment needed.">
+  <meta name="keywords" content="XSLT editor, XPath evaluator, SAP CPI, SAP Cloud Integration, XSLT 3.0, XPath 3.1, XSLT debugger, XSLT online, Saxon-JS, XML transformation, XSLT IDE, XML editor online, SAP Integration Suite, iFlow XSLT, CPI mapping">
+  <meta name="author" content="XSLTDebugX">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#1e1e2e">
+  <meta name="application-name" content="XSLTDebugX">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="XSLTDebugX">
+  <link rel="canonical" href="https://xsltdebugx.pages.dev/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="XSLTDebugX — XSLT 3.0 IDE for SAP Cloud Integration">
+  <meta property="og:description" content="Free browser-based XSLT 3.0 and XPath 3.1 IDE. Test SAP CPI transformations locally with headers, properties, and extension functions — no deployment needed.">
+  <meta property="og:url" content="https://xsltdebugx.pages.dev/">
+  <meta property="og:site_name" content="XSLTDebugX">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="XSLTDebugX — XSLT 3.0 IDE for SAP Cloud Integration">
+  <meta name="twitter:description" content="Free browser-based XSLT 3.0 and XPath 3.1 IDE. Test SAP CPI transformations locally — no deployment needed.">
+  <meta name="twitter:domain" content="xsltdebugx.pages.dev">
+
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
   <script src="./lib/SaxonJS2.js"></script>
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "XSLTDebugX",
+    "alternateName": "XSLT Debug X",
+    "url": "https://xsltdebugx.pages.dev/",
+    "description": "Free browser-based XSLT 3.0 and XPath 3.1 IDE for SAP Cloud Integration. Test transformations locally with CPI simulation — no deployment needed.",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "XML/XSLT Development Tool",
+    "operatingSystem": "Any (browser-based)",
+    "browserRequirements": "Requires a modern browser with JavaScript enabled",
+    "softwareVersion": "1.0",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "featureList": [
+      "XSLT 3.0 transformation engine (Saxon-JS 2)",
+      "XPath 3.1 expression evaluator",
+      "SAP CPI header and property simulation",
+      "SAP CPI extension function support",
+      "61 built-in examples across 6 categories",
+      "Monaco Editor with XML/XSLT syntax highlighting",
+      "Real-time XML validation",
+      "Dark and light theme",
+      "Share transformations via URL",
+      "No server — runs entirely in-browser"
+    ],
+    "screenshot": "https://xsltdebugx.pages.dev/favicon.svg",
+    "keywords": "XSLT, XPath, SAP CPI, SAP Cloud Integration, XML editor, XSLT IDE, Saxon-JS",
+    "inLanguage": "en",
+    "isAccessibleForFree": true,
+    "license": "https://opensource.org/licenses/MIT"
+  }
+  </script>
 </head>
 <body class="light">
+
+<!-- SEO: visible text for crawlers that don't execute JS -->
+<noscript>
+  <div style="padding:2rem;max-width:800px;margin:0 auto;font-family:system-ui,sans-serif">
+    <h1>XSLTDebugX — Free XSLT 3.0 IDE for SAP Cloud Integration</h1>
+    <p>XSLTDebugX is a free, browser-based XSLT 3.0 and XPath 3.1 integrated development environment designed for SAP Cloud Integration (CPI) developers.</p>
+    <h2>Features</h2>
+    <ul>
+      <li>XSLT 3.0 transformation engine powered by Saxon-JS 2</li>
+      <li>XPath 3.1 expression evaluator with syntax highlighting</li>
+      <li>SAP CPI simulation — test with headers, properties, and extension functions</li>
+      <li>61 built-in examples covering basic to advanced XSLT patterns</li>
+      <li>Monaco Editor with XML/XSLT syntax highlighting and error detection</li>
+      <li>Share transformations via URL — no server needed</li>
+      <li>Dark and light theme support</li>
+      <li>Works entirely in your browser — no installation, no data sent to servers</li>
+    </ul>
+    <h2>Use Cases</h2>
+    <ul>
+      <li>Develop and debug XSLT mappings for SAP Integration Suite iFlows</li>
+      <li>Test XPath expressions against sample XML documents</li>
+      <li>Learn XSLT 3.0 with interactive examples</li>
+      <li>Validate XML structure and transformation output</li>
+    </ul>
+    <p>Please enable JavaScript to use the XSLTDebugX editor.</p>
+  </div>
+</noscript>
 
 <!-- Loading -->
 <div id="loadingOverlay">
