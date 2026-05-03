@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://xsltdebugx.pages.dev/sitemap.xml

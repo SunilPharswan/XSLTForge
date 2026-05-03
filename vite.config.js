@@ -67,6 +67,8 @@ export default defineConfig({
         copyFileSync('_headers', 'dist/_headers');
         if (existsSync('_redirects')) copyFileSync('_redirects', 'dist/_redirects');
         if (existsSync('favicon.svg')) copyFileSync('favicon.svg', 'dist/favicon.svg');
+        if (existsSync('robots.txt')) copyFileSync('robots.txt', 'dist/robots.txt');
+        if (existsSync('sitemap.xml')) copyFileSync('sitemap.xml', 'dist/sitemap.xml');
 
         // ── Remove the empty JS stub Vite emits for the CSS-only entry ────
         rmSync('dist/assets', { recursive: true, force: true });

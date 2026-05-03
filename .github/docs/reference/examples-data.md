@@ -27,10 +27,11 @@ const CATEGORIES = {
 - Never orphan categories (ensure at least one example uses it)
 - Accent colors should be distinct and accessible
 
-**Current categories:**
+**Current categories (6):**
 - `transform` — Data Transformation (#3fb950, green)
 - `aggregation` — Aggregation & Splitting (#f5a524, amber)
 - `format` — Format Conversion (#c084fc, purple)
+- `advanced` — XSLT 3.0 Advanced (#e06c75, coral)
 - `cpi` — SAP CPI Patterns (#0070f2, blue)
 - `xpath` — XPath Explorer (#f5a524, amber)
 
