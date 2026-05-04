@@ -3,6 +3,7 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 /index.html
   Cache-Control: no-store
@@ -18,3 +19,15 @@
 
 /favicon.svg
   Cache-Control: public, max-age=86400
+
+/favicon-48.png
+  Cache-Control: public, max-age=86400
+
+/favicon-192.png
+  Cache-Control: public, max-age=86400
+
+/site.webmanifest
+  Cache-Control: public, max-age=86400
+
+/og-image.png
+  Cache-Control: public, max-age=604800

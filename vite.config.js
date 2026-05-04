@@ -67,8 +67,12 @@ export default defineConfig({
         copyFileSync('_headers', 'dist/_headers');
         if (existsSync('_redirects')) copyFileSync('_redirects', 'dist/_redirects');
         if (existsSync('favicon.svg')) copyFileSync('favicon.svg', 'dist/favicon.svg');
+        if (existsSync('favicon-48.png')) copyFileSync('favicon-48.png', 'dist/favicon-48.png');
+        if (existsSync('favicon-192.png')) copyFileSync('favicon-192.png', 'dist/favicon-192.png');
+        if (existsSync('site.webmanifest')) copyFileSync('site.webmanifest', 'dist/site.webmanifest');
         if (existsSync('robots.txt')) copyFileSync('robots.txt', 'dist/robots.txt');
         if (existsSync('sitemap.xml')) copyFileSync('sitemap.xml', 'dist/sitemap.xml');
+        if (existsSync('og-image.png')) copyFileSync('og-image.png', 'dist/og-image.png');
 
         // ── Remove the empty JS stub Vite emits for the CSS-only entry ────
         rmSync('dist/assets', { recursive: true, force: true });

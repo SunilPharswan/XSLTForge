@@ -108,8 +108,10 @@
       padding: 0 14px; gap: 12px;
       flex-shrink: 0;
     }
+    .header nav { display: contents; }
     .logo {
       display: flex; align-items: center; gap: 9px; text-decoration: none;
+      margin: 0; font-size: inherit; font-weight: inherit;
     }
     .logo-mark {
       width: 30px; height: 30px;
