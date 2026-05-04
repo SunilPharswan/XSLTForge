@@ -36,7 +36,14 @@
   <meta name="twitter:domain" content="xsltdebugx.pages.dev">
   <meta name="twitter:image" content="https://xsltdebugx.pages.dev/og-image.png">
 
+  <link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="favicon-192.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
@@ -57,7 +64,14 @@
     "operatingSystem": "Any (browser-based)",
     "browserRequirements": "Requires a modern browser with JavaScript enabled",
     "softwareVersion": "1.0",
+    "datePublished": "2025-01-01",
+    "dateModified": "2026-05-04",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": {
+      "@type": "Person",
+      "name": "Sunil Pharswan",
+      "url": "https://www.linkedin.com/in/sunilph/"
+    },
     "featureList": [
       "XSLT 3.0 transformation engine (Saxon-JS 2)",
       "XPath 3.1 expression evaluator",
@@ -70,11 +84,12 @@
       "Share transformations via URL",
       "No server — runs entirely in-browser"
     ],
-    "screenshot": "https://xsltdebugx.pages.dev/favicon.svg",
+    "screenshot": "https://xsltdebugx.pages.dev/og-image.png",
     "keywords": "XSLT, XPath, SAP CPI, SAP Cloud Integration, XML editor, XSLT IDE, Saxon-JS",
     "inLanguage": "en",
     "isAccessibleForFree": true,
-    "license": "https://opensource.org/licenses/MIT"
+    "license": "https://opensource.org/licenses/MIT",
+    "sameAs": "https://github.com/SunilPharswan/XSLTDebugX"
   }
   </script>
 </head>
@@ -125,6 +140,7 @@
 
   <div class="h-spacer"></div>
 
+  <nav aria-label="Main actions">
   <button class="ex-btn share-btn" id="shareBtn" onclick="openShareModal()">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"><circle cx="12" cy="3" r="1.8"/><circle cx="12" cy="13" r="1.8"/><circle cx="3" cy="8" r="1.8"/><path d="M10.3 3.9L4.7 7.1M4.7 8.9l5.6 3.2"/></svg>
     Share
@@ -161,10 +177,11 @@
     Run XSLT
     <span class="kbd">⌘↵</span>
   </button>
+  </nav>
 </header>
 
 <!-- 3-Column layout -->
-<div class="workspace">
+<main class="workspace">
 
   <!-- LEFT: XML Input + Headers + Properties -->
   <div class="col col-side" id="colLeft">
@@ -386,7 +403,7 @@
     </div>
   </div>
 
-</div>
+</main>
 
 <!-- Share Modal -->
 <div class="ex-modal-backdrop" id="shareModalBackdrop" onclick="handleShareBackdropClick(event)">
@@ -436,7 +453,7 @@
 
 
 <!-- Status Bar -->
-<div class="status-bar">
+<footer class="status-bar">
   <div class="stat">
     <div class="stat-dot ok" id="statDot"></div>
     <span id="statTxt">Ready</span>
@@ -469,7 +486,7 @@
     </a>
   </div>
   <div class="stat tm-notice" title="SAP® and SAP Cloud Platform Integration (CPI) are registered trademarks of SAP SE. This tool is not affiliated with or endorsed by SAP SE.">SAP® trademark of SAP SE</div>
-</div>
+</footer>
 
 <!-- Help Modal -->
 <div class="ex-modal-backdrop" id="helpModalBackdrop" onclick="handleHelpBackdropClick(event)">
